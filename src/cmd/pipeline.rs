@@ -24,15 +24,7 @@ struct PipelineRes {
 	web_url: String,
 }
 
-pub fn cmd(
-	gitlab: Gitlab,
-	args::Opts {
-		verbose: _,
-		config: _,
-		..
-	}: &args::Opts,
-	args: &args::Pipeline,
-) -> Result<()> {
+pub fn cmd(gitlab: Gitlab, args: &args::Pipeline) -> Result<()> {
 	let pipeline_cmd = &args.cmd;
 	match pipeline_cmd {
 		args::PipelineCmd::Create(cmd_args) => {
@@ -46,7 +38,7 @@ pub fn cmd(
 				"Failed to create pipeline for {}/{}",
 				&project, &tag
 			))?;
-			log::info!("[{}]({})", pipeline.id, pipeline.web_url);
+			println!("[{}]({})", pipeline.id, pipeline.web_url);
 			Ok(())
 		}
 
@@ -60,7 +52,7 @@ pub fn cmd(
 			let pipeline: PipelineRes = endpoint
 				.query(&gitlab)
 				.context(format!("Failed get pipeline #{}", &id))?;
-			log::info!("[{}]({}): {}", id, pipeline.web_url, pipeline.status);
+			println!("[{}]({}): {}", id, pipeline.web_url, pipeline.status);
 			Ok(())
 		}
 
@@ -74,7 +66,7 @@ pub fn cmd(
 			let pipeline: PipelineRes = endpoint
 				.query(&gitlab)
 				.context(format!("Failed cancel pipeline #{}", &id))?;
-			log::info!("[{}]({}): {}", id, pipeline.web_url, pipeline.status);
+			println!("[{}]({}): {}", id, pipeline.web_url, pipeline.status);
 			Ok(())
 		}
 
@@ -88,7 +80,7 @@ pub fn cmd(
 			let pipeline: PipelineRes = endpoint
 				.query(&gitlab)
 				.context(format!("Failed cancel pipeline #{}", &id))?;
-			log::info!("[{}]({}): {}", id, pipeline.web_url, pipeline.status);
+			println!("[{}]({}): {}", id, pipeline.web_url, pipeline.status);
 			Ok(())
 		}
 	}

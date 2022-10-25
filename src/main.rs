@@ -16,9 +16,6 @@ use gitlab::Gitlab;
 fn main() -> Result<()> {
 	// parse command line arguments
 	let opts: Opts = args::from_env();
-	// initialize env_logger in info mode for rconfd by default
-	env_logger::init_from_env(env_logger::Env::new().default_filter_or("glctl=info"));
-	log::info!("{} v{}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
 
 	// read yaml config
 	let config = Config::read(&opts.config)?;
@@ -35,8 +32,20 @@ fn main() -> Result<()> {
 		.with_context(|| format!("Can't connect to {}", &config.host))?;
 
 	match &opts.subcmd {
-		SubCommand::Tags(args) => tags(gitlab, &opts, args),
-		SubCommand::Build(args) => pipeline(gitlab, &opts, args),
-		SubCommand::Archive(args) => archive(gitlab, &opts, args),
+		SubCommand::Tags(args) => tags(gitlab, args),
+		SubCommand::Build(args) => pipeline(gitlab, args),
+		SubCommand::Archive(args) => {
+			// extract the filename from the path to use as a local lock filename
+			// we are sure at this point that the path is valid (has a filename component
+			// and is convertible to string), so the unwrap are harmles
+			let config_name = config
+				.path
+				.file_name()
+				.unwrap()
+				.to_owned()
+				.into_string()
+				.unwrap();
+			archive(gitlab, &config_name, opts.verbose, args)
+		}
 	}
 }

@@ -18,15 +18,7 @@ struct Tag {
 	name: String,
 }
 
-pub fn cmd(
-	gitlab: Gitlab,
-	args::Opts {
-		verbose: _,
-		config: _,
-		..
-	}: &args::Opts,
-	args: &args::Tags,
-) -> Result<()> {
+pub fn cmd(gitlab: Gitlab, args: &args::Tags) -> Result<()> {
 	match &args.cmd {
 		args::TagsCmd::Unprotect(args) => {
 			let project = get_project(&args.project)?;
@@ -51,7 +43,7 @@ pub fn cmd(
 				"Failed to protect tag '{}' on project {}",
 				&tag, &project
 			))?;
-			log::info!("tag '{}' is protected on project {}", tag.name, &project);
+			println!("tag '{}' is protected on project {}", tag.name, &project);
 
 			Ok(())
 		}

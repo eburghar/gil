@@ -17,13 +17,7 @@ use std::{
 	io,
 };
 
-pub fn cmd(
-	gitlab: Gitlab,
-	args::Opts {
-		verbose, config, ..
-	}: &args::Opts,
-	args: &args::Archive,
-) -> Result<()> {
+pub fn cmd(gitlab: Gitlab, config: &str, verbose: bool, args: &args::Archive) -> Result<()> {
 	match &args.cmd {
 		args::ArchiveCmd::Extract(args) => {
 			// in rename mode we remove the first path component and replace by the project name
@@ -40,7 +34,7 @@ pub fn cmd(
 			};
 
 			// create the dest directory
-			let dest_dir = get_or_create_dir(&args.dir, args.keep, args.update, *verbose)?;
+			let dest_dir = get_or_create_dir(&args.dir, args.keep, args.update, verbose)?;
 			// open lock file (update mode)
 			let lock = if let Some(ref batch) = args.batch {
 				batch
@@ -62,11 +56,11 @@ pub fn cmd(
 
 				// don't overwrite if we were asked to keep.
 				if args.keep && is_extracted {
-					log::info!("{} already extracted", &project);
+					println!("{} already extracted", &project);
 					// if no entry in lockfile in update mode, there is no garantee that we
 					// have an extraction of the right version
 					if args.update && !lock.contains_key(project) {
-						log::warn!("We couldn't find any entry in the lockfile\n.Remove or run without -k to overwrite.",)
+						eprintln!("We couldn't find any entry in the lockfile\n.Remove or run without -k to overwrite.",)
 					}
 					continue;
 				}
@@ -85,7 +79,7 @@ pub fn cmd(
 				if args.update && is_extracted {
 					// skip if extracted and locked commit match
 					if found && commit == *tag.commit.id {
-						log::info!(
+						println!(
 							"{} {} ({}) already extracted",
 							project,
 							tag.name,
@@ -95,7 +89,7 @@ pub fn cmd(
 					} else {
 						// issue a warning when version mismatch before overwriting
 						if commit != *tag.commit.id {
-							log::warn!(
+							eprintln!(
 								"Extracted commit {} and {} commit {} mismatch",
 								&commit[..8],
 								&tag.name,
@@ -124,7 +118,7 @@ pub fn cmd(
 				// from a stream instead
 				let targz = api::raw(endpoint).query(&gitlab)?;
 
-				log::info!("Extracting {} {} ({})", &project, &tag.name, &commit[..8]);
+				println!("Extracting {} {} ({})", &project, &tag.name, &commit[..8]);
 				// chain gzip reader and arquive reader. turn vec<u8> to a slice
 				// to be able to io::Read from it
 				let tar = GzDecoder::new(targz.as_slice());
@@ -135,7 +129,7 @@ pub fn cmd(
 					let mut entry = match entry {
 						Ok(entry) => entry,
 						Err(err) => {
-							log::warn!("  Can't get {} archive entry: {:?}", &project, &err);
+							eprintln!("  Can't get {} archive entry: {:?}", &project, &err);
 							continue;
 						}
 					};
@@ -170,12 +164,12 @@ pub fn cmd(
 							if !entry_path.exists() {
 								match create_dir(&entry_path) {
 									Ok(()) => {
-										if *verbose {
-											log::info!("  {}", &entry_path.to_string_lossy());
+										if verbose {
+											println!("  {}", &entry_path.to_string_lossy());
 										}
 									}
 									Err(err) => {
-										log::warn!(
+										eprintln!(
 											"  Can't create dir {}: {:?}",
 											&entry_path.to_string_lossy(),
 											&err
@@ -191,7 +185,7 @@ pub fn cmd(
 							let mut file = match File::create(&entry_path) {
 								Ok(file) => file,
 								Err(err) => {
-									log::error!(
+									eprintln!(
 										"  Can't create file {}: {:?}",
 										&entry_path.to_string_lossy(),
 										&err
@@ -201,8 +195,8 @@ pub fn cmd(
 							};
 							match io::copy(&mut entry, &mut file) {
 								Ok(size) => {
-									if *verbose {
-										log::info!(
+									if verbose {
+										println!(
 											"  {} ({})",
 											&entry_path.to_string_lossy(),
 											ByteSize(size)
@@ -210,7 +204,7 @@ pub fn cmd(
 									}
 								}
 								Err(err) => {
-									log::error!(
+									eprintln!(
 										"  Can't extract {}: {:?}",
 										&entry_path.to_string_lossy(),
 										&err
@@ -221,7 +215,7 @@ pub fn cmd(
 						}
 						// TODO: support other types (links)
 						_ => {
-							log::warn!(
+							eprintln!(
 								"  {} ({:?}) ignored",
 								&entry_path.to_string_lossy(),
 								&file_type

@@ -1,12 +1,12 @@
 use argh::{FromArgs, TopLevelCommand};
-use std::path::Path;
+use std::{env, path::Path};
 
 #[derive(FromArgs)]
 /// Interact with Gitlab API
 pub struct Opts {
 	#[argh(option, short = 'c')]
 	/// configuration file containing gitlab connection parameters
-	pub config: String,
+	pub config: Option<String>,
 	#[argh(switch, short = 'v')]
 	/// more detailed output
 	pub verbose: bool,
@@ -59,7 +59,7 @@ pub enum ArchiveCmd {
 }
 
 #[derive(FromArgs)]
-/// hangle project archive
+/// Handle project archives
 #[argh(subcommand, name = "archive")]
 pub struct Archive {
 	#[argh(subcommand)]
@@ -75,7 +75,7 @@ pub enum TagsCmd {
 }
 
 #[derive(FromArgs)]
-/// protect tags using an expression
+/// Protect tags using an expression
 #[argh(subcommand, name = "protect")]
 pub struct TagsProtect {
 	#[argh(option, short = 'p')]
@@ -87,7 +87,7 @@ pub struct TagsProtect {
 }
 
 #[derive(FromArgs)]
-/// unprotect tags using an expression
+/// Unprotect tags using an expression
 #[argh(subcommand, name = "unprotect")]
 pub struct TagsUnprotect {
 	#[argh(option, short = 'p')]
@@ -99,7 +99,7 @@ pub struct TagsUnprotect {
 }
 
 #[derive(FromArgs)]
-/// manage project tags
+/// Manage project tags
 #[argh(subcommand, name = "tags")]
 pub struct Tags {
 	#[argh(subcommand)]
@@ -117,7 +117,7 @@ pub enum PipelineCmd {
 }
 
 #[derive(FromArgs)]
-/// get pipeline status
+/// Get pipeline status
 #[argh(subcommand, name = "get")]
 pub struct PipelineGet {
 	#[argh(option, short = 'p')]
@@ -129,7 +129,7 @@ pub struct PipelineGet {
 }
 
 #[derive(FromArgs)]
-/// get pipeline status
+/// Create a new pipeline
 #[argh(subcommand, name = "create")]
 pub struct PipelineCreate {
 	#[argh(option, short = 'p')]
@@ -141,7 +141,7 @@ pub struct PipelineCreate {
 }
 
 #[derive(FromArgs)]
-/// cancel a pipeline
+/// Cancel a pipeline
 #[argh(subcommand, name = "cancel")]
 pub struct PipelineCancel {
 	#[argh(option, short = 'p')]
@@ -153,7 +153,7 @@ pub struct PipelineCancel {
 }
 
 #[derive(FromArgs)]
-/// retry a pipeline
+/// Retry a pipeline
 #[argh(subcommand, name = "retry")]
 pub struct PipelineRetry {
 	#[argh(option, short = 'p')]
@@ -165,7 +165,7 @@ pub struct PipelineRetry {
 }
 
 #[derive(FromArgs)]
-/// manage project pipeline
+/// Manage project pipeline
 #[argh(subcommand, name = "pipeline")]
 pub struct Pipeline {
 	#[argh(subcommand)]
