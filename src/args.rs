@@ -116,7 +116,7 @@ pub struct Tags {
 #[derive(FromArgs)]
 #[argh(subcommand)]
 pub enum PipelineCmd {
-	Get(PipelineGet),
+	Status(PipelineStatus),
 	Create(PipelineCreate),
 	Cancel(PipelineCancel),
 	Retry(PipelineRetry),
@@ -125,8 +125,8 @@ pub enum PipelineCmd {
 
 #[derive(FromArgs)]
 /// Get pipeline status
-#[argh(subcommand, name = "get")]
-pub struct PipelineGet {
+#[argh(subcommand, name = "status")]
+pub struct PipelineStatus {
 	#[argh(option, short = 'p')]
 	/// the project which owns the pipeline
 	pub project: Option<String>,

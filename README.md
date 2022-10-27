@@ -19,7 +19,7 @@ to add new ones. Feel free to send PR.
 ## General use
 
 ```
-glctl 0.3.0
+glctl 0.3.1
 
 Usage: glctl [-c <config>] [-v] [-o] [--no-cache] <command> [<args>]
 
@@ -38,10 +38,38 @@ Commands:
   archive           Handle project archives
 ```
 
+## Examples
+
+If you are in repository of a gitlab project with the most recent tag at 0.1.9
+
+```bash
+gctl pipeline create
+```
+
+Will create a new pipeline over 0.1.0
+
+```bash
+glctl -o pipeline status
+```
+
+Will show the status of pipeline and its jobs and open the pipeline page in the browser
+
+```bash
+glctl -o pipeline log
+```
+
+Will show the log of the latest job of the latest pipeline (no follow up)
+
+```bash
+glctl tags protect
+```
+  
+Will protect all the tags (`*`) on the project
+
 ## Archive command
 
 ```
-glctl 0.3.0
+glctl 0.3.1
 
 Usage: glctl archive extract [<tag>] [-p <project>] [-b <batch>] [-s <strip>] [-r] [-d <dir>] [-k] [-u]
 
@@ -66,16 +94,16 @@ Options:
   --help            display usage information
 ```
 
-In batch mode, a yaml configuration file is used to specify the list of project/tags to extract the
-arquives from:
+In batch mode, a yaml configuration file is used to specify the list of project/tags to extract
+the arquives from:
 
 ```yaml
 group1/project1: 0.1.0
 group2/project2: 0.2.0
 ```
 
-The archive extraction is done from the stream whithout needing to preliminary download and save
-the archive on disk.
+The archive extraction is done from the stream whithout needing to preliminary download and
+save the archive on disk.
 
 In update mode, a lock file containing the hash of latest commit is used to decide if we need
 to reextract archives.
@@ -84,7 +112,7 @@ to reextract archives.
 ## Tags command
 
 ```
-glctl 0.3.0
+glctl 0.3.1
 
 Usage: glctl tags <command> [<args>]
 
@@ -103,7 +131,7 @@ Allow to switch on and off tags protection.
 ## Pipeline command
 
 ```
-glctl 0.3.0
+glctl 0.3.1
 
 Usage: glctl pipeline <command> [<args>]
 
@@ -113,10 +141,11 @@ Options:
   --help            display usage information
 
 Commands:
-  get               Get pipeline status
+  status            Get pipeline status
   create            Create a new pipeline
   cancel            Cancel a pipeline
   retry             Retry a pipeline
+  log               Get log from a job
 ```
 
 ## Configuration
@@ -149,5 +178,7 @@ You need to define a new OAuth application inside your gitlab instance (at `/adm
 with an `api` scope and `http://localhost:8888` as the redirect URI (change to match `redirect-port`
 in config file) and copy the id and secret.
 
-On successful login, the short-lived token is saved under the cache directory to speedup consecutive command
-invocations unless you invoke with `--no-cache`.
+On successful login, the short-lived token is saved under the cache directory to speedup
+consecutive command invocations unless you invoke with `--no-cache`. When expired it is renewed
+automatically at the first invocation and if your browser is still connected to gitlab it will
+follow the oidc flow without prompting your password.
