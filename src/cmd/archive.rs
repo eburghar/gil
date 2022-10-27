@@ -1,47 +1,83 @@
 use crate::{
 	archive::Archive,
 	args,
-	config::BatchConfig,
+	context::CliContext,
 	lockfile::LockFile,
-	utils::{get_or_create_dir, get_project, get_tag, get_tag_commit},
+	utils::{get_or_create_dir, get_tag_commit},
 };
+
 use anyhow::{Context, Result};
 use bytesize::ByteSize;
 use flate2::read::GzDecoder;
-use gitlab::{
-	api::{self, Query},
-	Gitlab,
-};
+use gitlab::api::{self, Query};
+use serde::Deserialize;
 use std::{
+	collections::BTreeMap,
 	fs::{create_dir, create_dir_all, remove_dir_all, File},
 	io,
+	ops::Deref,
+	path::PathBuf,
 };
 
-pub fn cmd(gitlab: Gitlab, config: &str, verbose: bool, args: &args::Archive) -> Result<()> {
+#[derive(Deserialize)]
+/// Configuration for batch mode (extract sub command)
+pub struct BatchConfig(BTreeMap<String, String>);
+
+impl BatchConfig {
+	/// Initializer from parameters
+	pub fn singleton(project: String, tag: String) -> Self {
+		let archives: BTreeMap<_, _> = [(project, tag)].into();
+		Self(archives)
+	}
+
+	/// Initialize from a file
+	pub fn from_file(config: &str) -> Result<Self> {
+		// open configuration file
+		let file = File::open(&config).with_context(|| format!("Can't open {}", &config))?;
+		// deserialize configuration
+		let config: Self =
+			serde_yaml::from_reader(file).with_context(|| format!("Can't read {}", &config))?;
+		Ok(config)
+	}
+}
+
+/// Direct access to the map
+impl Deref for BatchConfig {
+	type Target = BTreeMap<String, String>;
+
+	fn deref(&self) -> &Self::Target {
+		&self.0
+	}
+}
+
+/// Command implementaton
+pub fn cmd(context: &CliContext, args: &args::Archive) -> Result<()> {
 	match &args.cmd {
 		args::ArchiveCmd::Extract(args) => {
-			// in rename mode we remove the first path component and replace by the project name
+			// rename mode is like -s 1 (we remove the first path component) + replace by the project name
 			let strip = if args.rename { 1 } else { args.strip };
 			// determine the list of project/tag to extract
 			let batch = if let Some(ref config) = args.batch {
 				// in batch mode, we read from a file
-				BatchConfig::read(config)?
+				BatchConfig::from_file(config)?
 			} else {
 				// in command line we extract only 1 project given from command line arguments
-				let project = get_project(&args.project)?;
-				let tag = get_tag(&args.tag)?;
+				// let project = get_project(&args.project)?;
+				// let tag = get_tag(&args.tag)?;
+				let project = context.project(args.project.as_ref())?;
+				let tag = context.tag(args.tag.as_ref())?;
 				BatchConfig::singleton(project.to_owned(), tag.to_owned())
 			};
 
 			// create the dest directory
-			let dest_dir = get_or_create_dir(&args.dir, args.keep, args.update, verbose)?;
+			let dest_dir = get_or_create_dir(&args.dir, args.keep, args.update, context.verbose)?;
 			// open lock file (update mode)
-			let lock = if let Some(ref batch) = args.batch {
+			let lock_name = if let Some(ref batch) = args.batch {
 				batch
 			} else {
-				config
+				&context.config.name
 			};
-			let mut lock = LockFile::open(lock)?;
+			let mut lock = LockFile::open(lock_name)?;
 
 			// extract all rchives to specified directory
 			for (project, tag) in batch.iter() {
@@ -65,7 +101,7 @@ pub fn cmd(gitlab: Gitlab, config: &str, verbose: bool, args: &args::Archive) ->
 					continue;
 				}
 
-				let tag = get_tag_commit(&gitlab, project, tag)?;
+				let tag = get_tag_commit(&context.gitlab, project, tag)?;
 				// get locked_commit or tag commit
 				let mut found = false;
 				let mut commit = match lock.get(project) {
@@ -113,10 +149,11 @@ pub fn cmd(gitlab: Gitlab, config: &str, verbose: bool, args: &args::Archive) ->
 					.project(project.to_owned())
 					.sha(commit.to_owned())
 					.build()?;
+
 				// NOTE: api::raw returns a vec<u8>. It would be
 				// more memory efficient to return the rewest::Response to read
 				// from a stream instead
-				let targz = api::raw(endpoint).query(&gitlab)?;
+				let targz = api::raw(endpoint).query(&context.gitlab)?;
 
 				println!("Extracting {} {} ({})", &project, &tag.name, &commit[..8]);
 				// chain gzip reader and arquive reader. turn vec<u8> to a slice
@@ -125,7 +162,7 @@ pub fn cmd(gitlab: Gitlab, config: &str, verbose: bool, args: &args::Archive) ->
 				let mut arquive = tar::Archive::new(tar);
 
 				// for each entry in the arquive
-				for entry in arquive.entries().unwrap() {
+				for entry in arquive.entries()? {
 					let mut entry = match entry {
 						Ok(entry) => entry,
 						Err(err) => {
@@ -134,28 +171,20 @@ pub fn cmd(gitlab: Gitlab, config: &str, verbose: bool, args: &args::Archive) ->
 						}
 					};
 
-					// get the path
-					let mut entry_path = entry.path().unwrap().into_owned();
-					// turn into components
-					let mut components = entry_path.components();
-					// skip first components if indicated in command line args
-					if strip > 0 {
-						for _ in 0..strip {
-							components.next();
-						}
-						// and reassemble dest_path
-						entry_path = components.as_path().to_path_buf();
-					}
+					// strip leading path components if necessary
+					let entry_path: PathBuf = entry.path()?.components().skip(strip).collect();
 					// don't do anything if empty path
-					if entry_path.to_string_lossy().is_empty() {
+					if entry_path.to_str().filter(|s| s.is_empty()).is_some() {
 						continue;
 					}
+
 					// append project dir in rename mode otherwise append destination dir
-					entry_path = if args.rename {
+					let entry_path = if args.rename {
 						prj_dir.join(entry_path)
 					} else {
 						dest_dir.join(entry_path)
 					};
+
 					// get the entry type
 					let file_type = entry.header().entry_type();
 					match file_type {
@@ -164,7 +193,7 @@ pub fn cmd(gitlab: Gitlab, config: &str, verbose: bool, args: &args::Archive) ->
 							if !entry_path.exists() {
 								match create_dir(&entry_path) {
 									Ok(()) => {
-										if verbose {
+										if context.verbose {
 											println!("  {}", &entry_path.to_string_lossy());
 										}
 									}
@@ -195,7 +224,7 @@ pub fn cmd(gitlab: Gitlab, config: &str, verbose: bool, args: &args::Archive) ->
 							};
 							match io::copy(&mut entry, &mut file) {
 								Ok(size) => {
-									if verbose {
+									if context.verbose {
 										println!(
 											"  {} ({})",
 											&entry_path.to_string_lossy(),

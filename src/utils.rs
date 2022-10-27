@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use gitlab::{
 	api::{projects::repository::tags::Tag, Query},
 	Gitlab,
@@ -26,10 +26,12 @@ pub fn get_tag_commit(gitlab: &Gitlab, project: &str, tag: &str) -> Result<TagRe
 		.project(project.to_owned())
 		.tag_name(tag.to_owned())
 		.build()?;
-	let res: TagRes = endpoint.query(gitlab).context(format!(
-		"Failed to get commit info for tag {} on project {}",
-		&tag, &project
-	))?;
+	let res: TagRes = endpoint.query(gitlab).with_context(|| {
+		format!(
+			"Failed to get commit info for tag {} on project {}",
+			&tag, &project
+		)
+	})?;
 	Ok(res)
 }
 
@@ -50,41 +52,4 @@ pub fn get_or_create_dir(dir: &str, keep: bool, update: bool, verbose: bool) -> 
 		}
 	}
 	Ok(path)
-}
-
-pub fn get_project<'a>(project: &'a Option<String>) -> Result<&'a String> {
-	if let Some(project) = project {
-		Ok(&project)
-	} else {
-		// TODO: try to extract the project name from current git repo when none is given
-		bail!("Unable to determine the project automatically. Specify one manually.")
-	}
-}
-
-pub fn get_tagexpr<'a>(tag: &'a Option<String>) -> Result<&'a str> {
-	if let Some(tag) = tag {
-		Ok(&tag)
-	} else {
-		// TODO: try to extract the project latest tag from current git or gitlab api repo
-		// when none is given before failback to *
-		Ok("*")
-	}
-}
-
-pub fn get_tag<'a>(tag: &'a Option<String>) -> Result<&'a str> {
-	if let Some(tag) = tag {
-		Ok(&tag)
-	} else {
-		// TODO: try to extract the project latest tag from current git repo when none is given
-		bail!("Unable to determine the project latest tag automatically. Specify one manually.")
-	}
-}
-
-pub fn get_pipeline<'a>(id: Option<u64>) -> Result<u64> {
-	if let Some(id) = id {
-		Ok(id)
-	} else {
-		// TODO: try to extract the project name from current git repo when none is given
-		bail!("Unable to determine the project latest pipeline id automatically. Specify one manually.")
-	}
 }

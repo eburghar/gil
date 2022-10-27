@@ -10,8 +10,14 @@ pub struct Opts {
 	#[argh(switch, short = 'v')]
 	/// more detailed output
 	pub verbose: bool,
+	#[argh(switch, short = 'o')]
+	/// try to open links whenever possible
+	pub open: bool,
+	#[argh(switch)]
+	/// don't save oidc login to cache
+	pub no_cache: bool,
 	#[argh(subcommand)]
-	pub subcmd: SubCommand,
+	pub cmd: SubCommand,
 }
 
 #[derive(FromArgs)]
@@ -37,7 +43,7 @@ pub struct ArchiveExtract {
 	pub tag: Option<String>,
 	#[argh(option, short = 's', default = "0")]
 	/// strip first n path components of every entries in archive before extraction
-	pub strip: u8,
+	pub strip: usize,
 	#[argh(switch, short = 'r')]
 	/// rename first directory of the archive to the name of the project
 	pub rename: bool,
@@ -63,7 +69,7 @@ pub enum ArchiveCmd {
 #[argh(subcommand, name = "archive")]
 pub struct Archive {
 	#[argh(subcommand)]
-	/// operate on tags
+	/// operate on archive
 	pub cmd: ArchiveCmd,
 }
 
@@ -75,27 +81,27 @@ pub enum TagsCmd {
 }
 
 #[derive(FromArgs)]
-/// Protect tags using an expression
+/// Protect a project tag(s)
 #[argh(subcommand, name = "protect")]
 pub struct TagsProtect {
 	#[argh(option, short = 'p')]
 	/// the project to protect tags from
 	pub project: Option<String>,
-	#[argh(positional)]
-	/// tag expression
-	pub tag: Option<String>,
+	#[argh(positional, default = "\"*\".to_string()")]
+	/// tag expression (default: *)
+	pub tag: String,
 }
 
 #[derive(FromArgs)]
-/// Unprotect tags using an expression
+/// Unprotect a project tag(s)
 #[argh(subcommand, name = "unprotect")]
 pub struct TagsUnprotect {
 	#[argh(option, short = 'p')]
 	/// the project to protect tags from
 	pub project: Option<String>,
-	#[argh(positional)]
-	/// tag expression
-	pub tag: Option<String>,
+	#[argh(positional, default = "\"*\".to_string()")]
+	/// tag expression (defautl: *)
+	pub tag: String,
 }
 
 #[derive(FromArgs)]
@@ -114,6 +120,7 @@ pub enum PipelineCmd {
 	Create(PipelineCreate),
 	Cancel(PipelineCancel),
 	Retry(PipelineRetry),
+	Log(PipelineLog),
 }
 
 #[derive(FromArgs)]
@@ -121,7 +128,7 @@ pub enum PipelineCmd {
 #[argh(subcommand, name = "get")]
 pub struct PipelineGet {
 	#[argh(option, short = 'p')]
-	/// the project to build
+	/// the project which owns the pipeline
 	pub project: Option<String>,
 	#[argh(positional)]
 	/// pipeline id
@@ -133,7 +140,7 @@ pub struct PipelineGet {
 #[argh(subcommand, name = "create")]
 pub struct PipelineCreate {
 	#[argh(option, short = 'p')]
-	/// the project to build
+	/// the project which owns the pipeline
 	pub project: Option<String>,
 	#[argh(positional)]
 	/// tag
@@ -145,7 +152,7 @@ pub struct PipelineCreate {
 #[argh(subcommand, name = "cancel")]
 pub struct PipelineCancel {
 	#[argh(option, short = 'p')]
-	/// the project to build
+	/// the project which owns the pipeline
 	pub project: Option<String>,
 	#[argh(positional)]
 	/// pipeline id
@@ -157,10 +164,22 @@ pub struct PipelineCancel {
 #[argh(subcommand, name = "retry")]
 pub struct PipelineRetry {
 	#[argh(option, short = 'p')]
-	/// the project to build
+	/// the project which owns the pipeline
 	pub project: Option<String>,
 	#[argh(positional)]
 	/// pipeline id
+	pub id: Option<u64>,
+}
+
+#[derive(FromArgs)]
+/// Get log from a job
+#[argh(subcommand, name = "log")]
+pub struct PipelineLog {
+	#[argh(option, short = 'p')]
+	/// the project which owns the pipeline
+	pub project: Option<String>,
+	#[argh(positional)]
+	/// the job id to extract the job log from
 	pub id: Option<u64>,
 }
 

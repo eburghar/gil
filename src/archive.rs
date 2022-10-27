@@ -1,5 +1,4 @@
 use derive_builder::Builder;
-
 use gitlab::api::common::NameOrId;
 use gitlab::api::endpoint_prelude::*;
 
@@ -9,6 +8,7 @@ pub struct Archive<'a> {
 	/// The project to query for pipeline.
 	#[builder(setter(into))]
 	project: NameOrId<'a>,
+	#[allow(dead_code)]
 	sha: String,
 }
 
