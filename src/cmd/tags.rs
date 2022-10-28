@@ -1,4 +1,7 @@
-use crate::{args, context::CliContext};
+use crate::{
+	args::{self, TagsCmd},
+	context::CliContext,
+};
 
 use anyhow::{Context, Result};
 use gitlab::api::{
@@ -15,9 +18,10 @@ struct Tag {
 
 pub fn cmd(context: &CliContext, args: &args::Tags) -> Result<()> {
 	match &args.cmd {
-		args::TagsCmd::Unprotect(args) => {
+		TagsCmd::Unprotect(args) => {
 			let project = context.project(args.project.as_ref())?;
 			let tag = context.tag(Some(&args.tag))?;
+
 			let endpoint = UnprotectTag::builder()
 				.project(project.to_owned())
 				.name(tag.to_owned())
@@ -31,9 +35,10 @@ pub fn cmd(context: &CliContext, args: &args::Tags) -> Result<()> {
 			Ok(())
 		}
 
-		args::TagsCmd::Protect(args) => {
+		TagsCmd::Protect(args) => {
 			let project = context.project(args.project.as_ref())?;
 			let tag = context.tag(Some(&args.tag))?;
+
 			let endpoint = ProtectTag::builder()
 				.project(project.to_owned())
 				.name(tag.to_owned())

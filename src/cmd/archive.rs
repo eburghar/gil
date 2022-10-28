@@ -1,9 +1,9 @@
 use crate::{
 	archive::Archive,
-	args,
+	args::{self, ArchiveCmd},
 	context::CliContext,
 	lockfile::LockFile,
-	utils::{get_or_create_dir, get_tag_commit},
+	utils::get_or_create_dir,
 };
 
 use anyhow::{Context, Result};
@@ -53,7 +53,7 @@ impl Deref for BatchConfig {
 /// Command implementaton
 pub fn cmd(context: &CliContext, args: &args::Archive) -> Result<()> {
 	match &args.cmd {
-		args::ArchiveCmd::Extract(args) => {
+		ArchiveCmd::Extract(args) => {
 			// rename mode is like -s 1 (we remove the first path component) + replace by the project name
 			let strip = if args.rename { 1 } else { args.strip };
 			// determine the list of project/tag to extract
@@ -101,7 +101,7 @@ pub fn cmd(context: &CliContext, args: &args::Archive) -> Result<()> {
 					continue;
 				}
 
-				let tag = get_tag_commit(&context.gitlab, project, tag)?;
+				let tag = context.get_tag_commit(project, tag)?;
 				// get locked_commit or tag commit
 				let mut found = false;
 				let mut commit = match lock.get(project) {
