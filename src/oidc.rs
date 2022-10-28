@@ -4,7 +4,7 @@ use crate::{
 };
 
 use anyhow::{anyhow, bail, Context, Result};
-use indoc::indoc;
+use indoc::formatdoc;
 use openidconnect::url::Url;
 use openidconnect::{
 	core::{CoreClient, CoreIdTokenVerifier, CoreProviderMetadata, CoreResponseType},
@@ -107,16 +107,23 @@ pub fn login(host: &String, config: &OAuth2, opts: &Opts) -> Result<OAuth2Token>
 		state = CsrfToken::new(value.into_owned());
 	}
 
-	let page = indoc! {"
+	let page = formatdoc! {"
         <!DOCTYPE HTML>
         <html>
+		<head>
+		<title>{name}</title>
+		</head>
         <body>
+		  <h2>{name} {version} connexion successful</h2>
+		  <p>You can close this window.</p>
           <script>
-            window.close();
+			window.close();
           </script>
         </body>
-        </html>
-	"};
+        </html>"
+	,
+	version = env!("CARGO_PKG_VERSION"),
+	name = env!("CARGO_BIN_NAME") };
 	let response = format!(
 		"HTTP/1.1 200 OK\r\ncontent-length: {}\r\n\r\n{}",
 		page.len(),

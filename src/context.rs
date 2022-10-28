@@ -15,9 +15,8 @@ use gitlab::{
 		},
 		Query,
 	},
-	Gitlab,
+	types, Gitlab, StatusState,
 };
-use serde::Deserialize;
 
 /// Structure to pass around functions containing informations
 /// about execution context
@@ -32,33 +31,6 @@ pub struct CliContext {
 	pub config: Config,
 	/// information about the current git repo
 	pub repo: Option<GitProject>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Pipeline {
-	pub id: u64,
-	pub status: String,
-	pub web_url: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Job {
-	pub id: u64,
-	pub name: String,
-	pub stage: String,
-	pub status: String,
-	pub web_url: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct TagCommit {
-	pub id: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Tag {
-	pub name: String,
-	pub commit: TagCommit,
 }
 
 impl CliContext {
@@ -105,7 +77,7 @@ impl CliContext {
 
 	/// Returns the provided project name (default) or the one extracted from the repo url
 	/// or raises an error
-	pub fn project<'a>(&'a self, default: Option<&'a String>) -> Result<&'a String> {
+	pub fn get_project<'a>(&'a self, default: Option<&'a String>) -> Result<&'a String> {
 		default
 			.or_else(|| self.repo.as_ref().and_then(|repo| repo.name.as_ref()))
 			.ok_or_else(|| {
@@ -115,7 +87,7 @@ impl CliContext {
 
 	/// Returns the provided tag name (default) or the one extracted from the repo
 	/// or raises an error
-	pub fn tag<'a>(&'a self, default: Option<&'a String>) -> Result<&'a String> {
+	pub fn get_tag<'a>(&'a self, default: Option<&'a String>) -> Result<&'a String> {
 		default
 			.or_else(|| self.repo.as_ref().and_then(|repo| repo.tag.as_ref()))
 			.ok_or_else(|| {
@@ -130,7 +102,7 @@ impl CliContext {
 		default: Option<u64>,
 		project: &String,
 		tag: &String,
-	) -> Result<Pipeline> {
+	) -> Result<types::PipelineBasic> {
 		if let Some(id) = default {
 			let endpoint = pipelines::Pipeline::builder()
 				.project(project.to_owned())
@@ -167,7 +139,7 @@ impl CliContext {
 		project: &String,
 		tag: &String,
 		scopes: I,
-	) -> Result<Job>
+	) -> Result<types::Job>
 	where
 		I: Iterator<Item = JobScope>,
 	{
@@ -176,7 +148,7 @@ impl CliContext {
 				.project(project.to_owned())
 				.job(id)
 				.build()?;
-			let job: Job = endpoint
+			let job: types::Job = endpoint
 				.query(&self.gitlab)
 				.with_context(|| anyhow!("Unable to get the job #{}", id))?;
 			Ok(job)
@@ -184,44 +156,55 @@ impl CliContext {
 			let pipeline = self.get_pipeline(None, project, tag)?;
 			let endpoint = pipelines::PipelineJobs::builder()
 				.project(project.to_owned())
-				.pipeline(pipeline.id)
+				.pipeline(pipeline.id.value())
 				.include_retried(true)
 				.scopes(scopes)
 				.build()?;
-			let jobs: Vec<Job> = endpoint.query(&self.gitlab).with_context(|| {
+			let jobs: Vec<types::Job> = endpoint.query(&self.gitlab).with_context(|| {
 				format!(
 					"Failed to list jobs for the pipeline {} of the project {} @ {}",
 					pipeline.id, project, tag
 				)
 			})?;
 			if jobs.len() > 1 {
-				let job = jobs.last().unwrap();
 				print_jobs(
 					format!(
-						"Multiple jobs are available. The oldest one (#{}) has been picked. \
-				 	Specify the id as argument to change :\n",
-						job.id
+						"Pipeline #{} ({:?}) has several jobs :\n",
+						pipeline.id, pipeline.status,
 					),
 					&jobs,
 				);
+
+				let job = match pipeline.status {
+					// return the first job in the same state than the pipeline
+					StatusState::Failed | StatusState::Running | StatusState::Success => jobs
+						.into_iter()
+						.find(|job| job.status == pipeline.status)
+						.unwrap(),
+					// otherwise return first pipeline job
+					_ => jobs.into_iter().last().unwrap(),
+				};
+
+				Ok(job)
+			} else {
+				jobs.into_iter().last().ok_or_else(|| {
+					anyhow!(
+						"Unable to determine the latest job id for {} @ {}",
+						project,
+						tag
+					)
+				})
 			}
-			jobs.into_iter().last().ok_or_else(|| {
-				anyhow!(
-					"Unable to determine the latest job id for {} @ {}",
-					project,
-					tag
-				)
-			})
 		}
 	}
 
-	pub fn get_jobs(&self, project: &String, pipeline: u64) -> Result<Vec<Job>> {
+	pub fn get_jobs(&self, project: &String, pipeline: u64) -> Result<Vec<types::Job>> {
 		let endpoint = pipelines::PipelineJobs::builder()
 			.project(project.to_owned())
 			.pipeline(pipeline)
 			.include_retried(true)
 			.build()?;
-		let jobs: Vec<Job> = endpoint.query(&self.gitlab).with_context(|| {
+		let jobs: Vec<_> = endpoint.query(&self.gitlab).with_context(|| {
 			format!(
 				"Failed to jobs list for the pipeline #{} of the project {}",
 				pipeline, project
@@ -230,13 +213,13 @@ impl CliContext {
 		Ok(jobs)
 	}
 
-	pub fn get_tag_commit(&self, project: &str, tag: &str) -> Result<Tag> {
+	pub fn get_tag_commit(&self, project: &str, tag: &str) -> Result<types::Tag> {
 		// get commit sha associated with tag
 		let endpoint = tags::Tag::builder()
 			.project(project.to_owned())
 			.tag_name(tag.to_owned())
 			.build()?;
-		let res: Tag = endpoint.query(&self.gitlab).with_context(|| {
+		let res: types::Tag = endpoint.query(&self.gitlab).with_context(|| {
 			format!(
 				"Failed to get commit info for tag {} on project {}",
 				&tag, &project

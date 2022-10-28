@@ -1,6 +1,5 @@
-use crate::context::Job;
-
 use anyhow::{Context, Result};
+use gitlab::types;
 use std::{
 	fs::{create_dir_all, remove_dir_all},
 	path::PathBuf,
@@ -26,10 +25,13 @@ pub fn get_or_create_dir(dir: &str, keep: bool, update: bool, verbose: bool) -> 
 }
 
 /// Print the provided jobs list in reverse order (run order)
-pub fn print_jobs(message: String, jobs: &[Job]) {
+pub fn print_jobs(message: String, jobs: &[types::Job]) {
 	println!("{}", message);
 	for job in jobs.iter().rev() {
-		println!("- #{} {} [{}]: {}", job.id, job.name, job.stage, job.status);
+		println!(
+			"- #{} {} [{}]: {:?}",
+			job.id, job.name, job.stage, job.status
+		);
 	}
 	println!("\n");
 }

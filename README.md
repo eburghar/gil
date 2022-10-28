@@ -28,7 +28,7 @@ to add new ones. Feel free to fork or send PR.
 ## General use
 
 ```
-glctl 0.3.1
+glctl 0.3.2
 
 Usage: glctl [-c <config>] [-v] [-o] [--no-cache] <command> [<args>]
 
@@ -67,7 +67,7 @@ Will show the status of pipeline and its jobs and open the pipeline page in the 
 glctl -o pipeline log
 ```
 
-Will show the log of the latest job of the latest pipeline (no follow up)
+Depending of the state of the latest pipeline, this will show log in the same state of the latest job.
 
 ```bash
 glctl tags protect
@@ -78,7 +78,7 @@ Will protect all the tags (`*`) on the project
 ## Archive command
 
 ```
-glctl 0.3.1
+glctl 0.3.2
 
 Usage: glctl archive extract [<tag>] [-p <project>] [-b <batch>] [-s <strip>] [-r] [-d <dir>] [-k] [-u]
 
@@ -121,7 +121,7 @@ to reextract archives.
 ## Tags command
 
 ```
-glctl 0.3.1
+glctl 0.3.2
 
 Usage: glctl tags <command> [<args>]
 
@@ -140,7 +140,7 @@ Allow to switch on and off tags protection.
 ## Pipeline command
 
 ```
-glctl 0.3.1
+glctl 0.3.2
 
 Usage: glctl pipeline <command> [<args>]
 

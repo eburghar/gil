@@ -19,8 +19,8 @@ struct Tag {
 pub fn cmd(context: &CliContext, args: &args::Tags) -> Result<()> {
 	match &args.cmd {
 		TagsCmd::Unprotect(args) => {
-			let project = context.project(args.project.as_ref())?;
-			let tag = context.tag(Some(&args.tag))?;
+			let project = context.get_project(args.project.as_ref())?;
+			let tag = context.get_tag(Some(&args.tag))?;
 
 			let endpoint = UnprotectTag::builder()
 				.project(project.to_owned())
@@ -36,8 +36,8 @@ pub fn cmd(context: &CliContext, args: &args::Tags) -> Result<()> {
 		}
 
 		TagsCmd::Protect(args) => {
-			let project = context.project(args.project.as_ref())?;
-			let tag = context.tag(Some(&args.tag))?;
+			let project = context.get_project(args.project.as_ref())?;
+			let tag = context.get_tag(Some(&args.tag))?;
 
 			let endpoint = ProtectTag::builder()
 				.project(project.to_owned())

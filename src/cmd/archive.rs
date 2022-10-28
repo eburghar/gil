@@ -64,8 +64,8 @@ pub fn cmd(context: &CliContext, args: &args::Archive) -> Result<()> {
 				// in command line we extract only 1 project given from command line arguments
 				// let project = get_project(&args.project)?;
 				// let tag = get_tag(&args.tag)?;
-				let project = context.project(args.project.as_ref())?;
-				let tag = context.tag(args.tag.as_ref())?;
+				let project = context.get_project(args.project.as_ref())?;
+				let tag = context.get_tag(args.tag.as_ref())?;
 				BatchConfig::singleton(project.to_owned(), tag.to_owned())
 			};
 
@@ -107,14 +107,14 @@ pub fn cmd(context: &CliContext, args: &args::Archive) -> Result<()> {
 				let mut commit = match lock.get(project) {
 					Some(commit) => {
 						found = true;
-						commit.to_string()
+						commit
 					}
-					None => tag.commit.id.to_owned(),
+					None => tag.commit.id.value(),
 				};
 
 				if args.update && is_extracted {
 					// skip if extracted and locked commit match
-					if found && commit == *tag.commit.id {
+					if found && commit == tag.commit.id.value() {
 						println!(
 							"{} {} ({}) already extracted",
 							project,
@@ -124,18 +124,18 @@ pub fn cmd(context: &CliContext, args: &args::Archive) -> Result<()> {
 						continue;
 					} else {
 						// issue a warning when version mismatch before overwriting
-						if commit != *tag.commit.id {
+						if commit != tag.commit.id.value() {
 							eprintln!(
 								"Extracted commit {} and {} commit {} mismatch",
 								&commit[..8],
 								&tag.name,
-								&tag.commit.id[..8]
+								&tag.commit.short_id.value()
 							);
 						}
 						// remove project dir before update
 						remove_dir_all(&prj_dir)
 							.with_context(|| format!("Can't remove dir {}", prj_dir.display()))?;
-						commit = tag.commit.id.to_string();
+						commit = tag.commit.id.value();
 					}
 				}
 
