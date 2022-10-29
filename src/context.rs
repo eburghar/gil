@@ -48,17 +48,17 @@ impl CliContext {
 				// try to get the token from cache
 				if let Some(token) = OAuth2Token::from_cache() {
 					// check if we can login with that
-					if let Ok(gitlab) = Gitlab::with_oauth2(&config.host, &token.token) {
+					if let Ok(gitlab) = Gitlab::with_oauth2(&config.host, token) {
 						Ok(gitlab)
 					// otherwise try relogin
 					} else {
-						let cache = OAuth2Token::from_login(&config.host, oauth2, opts)?;
-						Gitlab::with_oauth2(&config.host, &cache.token)
+						let token = OAuth2Token::from_login(&config.host, oauth2, opts)?;
+						Gitlab::with_oauth2(&config.host, token)
 					}
 				// otherwise try to login
 				} else {
-					let cache = crate::oidc::login(&config.host, oauth2, opts)?;
-					Gitlab::with_oauth2(&config.host, &cache.token)
+					let token = crate::oidc::login(&config.host, oauth2, opts)?;
+					Gitlab::with_oauth2(&config.host, token)
 				}
 			}
 

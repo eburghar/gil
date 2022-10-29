@@ -92,14 +92,12 @@ impl Config {
 
 /// OAuth2 login token
 #[derive(Deserialize, Serialize)]
-pub struct OAuth2Token {
-	pub token: String,
-}
+pub struct OAuth2Token(String);
 
 impl OAuth2Token {
 	/// Initializer
 	pub fn new(token: String) -> Self {
-		Self { token }
+		Self(token)
 	}
 
 	/// Try silentely read the cache file
@@ -131,5 +129,11 @@ impl OAuth2Token {
 							.with_context(|| "Unable to serialize oidc login informations")
 					})
 			})
+	}
+}
+
+impl Into<String> for OAuth2Token {
+	fn into(self) -> String {
+		self.0
 	}
 }
