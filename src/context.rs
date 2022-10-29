@@ -1,8 +1,9 @@
 use crate::{
-	args::Opts,
+	args::{ColorChoice, Opts},
+	color::StyledStr,
 	config::{AuthType, Config, OAuth2Token},
 	git::GitProject,
-	utils::print_jobs,
+	utils::{print_jobs, status_style},
 };
 
 use anyhow::{anyhow, Context, Result};
@@ -25,6 +26,8 @@ pub struct CliContext {
 	pub verbose: bool,
 	/// open links automatically
 	pub open: bool,
+	/// color mode
+	pub color: ColorChoice,
 	/// the gitlab connexion
 	pub gitlab: Gitlab,
 	/// the configuration file
@@ -48,17 +51,17 @@ impl CliContext {
 				// try to get the token from cache
 				if let Some(token) = OAuth2Token::from_cache() {
 					// check if we can login with that
-					if let Ok(gitlab) = Gitlab::with_oauth2(&config.host, &token.token) {
+					if let Ok(gitlab) = Gitlab::with_oauth2(&config.host, token) {
 						Ok(gitlab)
 					// otherwise try relogin
 					} else {
-						let cache = OAuth2Token::from_login(&config.host, oauth2, opts)?;
-						Gitlab::with_oauth2(&config.host, &cache.token)
+						let token = OAuth2Token::from_login(&config.host, oauth2, opts)?;
+						Gitlab::with_oauth2(&config.host, token)
 					}
 				// otherwise try to login
 				} else {
-					let cache = crate::oidc::login(&config.host, oauth2, opts)?;
-					Gitlab::with_oauth2(&config.host, &cache.token)
+					let token = crate::oidc::login(&config.host, oauth2, opts)?;
+					Gitlab::with_oauth2(&config.host, token)
 				}
 			}
 
@@ -69,6 +72,7 @@ impl CliContext {
 		Ok(Self {
 			verbose: opts.verbose,
 			open: opts.open,
+			color: opts.color,
 			gitlab,
 			config,
 			repo,
@@ -167,13 +171,16 @@ impl CliContext {
 				)
 			})?;
 			if jobs.len() > 1 {
-				print_jobs(
-					format!(
-						"Pipeline #{} ({:?}) has several jobs :\n",
-						pipeline.id, pipeline.status,
-					),
-					&jobs,
+				let mut msg = StyledStr::new();
+				msg.none("Pipeline");
+				msg.literal(format!(" {}", pipeline.id.value()));
+				msg.none(": ");
+				msg.stylize(
+					status_style(pipeline.status),
+					format!("{:?}", pipeline.status),
 				);
+				msg.hint(format!(" ({})", pipeline.web_url));
+				print_jobs(msg, self.color, &jobs)?;
 
 				let job = match pipeline.status {
 					// return the first job in the same state than the pipeline

@@ -1,5 +1,34 @@
+#[cfg(feature = "color")]
+use argh::FromArgValue;
 use argh::{FromArgs, TopLevelCommand};
 use std::{env, path::Path};
+
+#[cfg(feature = "color")]
+#[derive(Copy, Clone, Debug)]
+/// Color mode
+pub enum ColorChoice {
+	Auto,
+	Always,
+	Never,
+}
+
+#[cfg(feature = "color")]
+impl FromArgValue for ColorChoice {
+	fn from_arg_value(value: &str) -> Result<Self, String> {
+		if value == "auto" {
+			Ok(Self::Auto)
+		} else if value == "always" {
+			Ok(Self::Always)
+		} else if value == "never" {
+			Ok(Self::Never)
+		} else {
+			Err(format!(
+				"{} not supported for --color. Use either \"auto\", \"always\" or \"never\"",
+				value
+			))
+		}
+	}
+}
 
 #[derive(FromArgs)]
 /// Interact with Gitlab API
@@ -13,6 +42,10 @@ pub struct Opts {
 	#[argh(switch, short = 'o')]
 	/// try to open links whenever possible
 	pub open: bool,
+	#[cfg(feature = "color")]
+	#[argh(option, default = "ColorChoice::Auto")]
+	/// color mode: auto (default), always or never
+	pub color: ColorChoice,
 	#[argh(switch)]
 	/// don't save oidc login to cache
 	pub no_cache: bool,

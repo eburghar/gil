@@ -1,8 +1,14 @@
 use anyhow::{Context, Result};
-use gitlab::types;
+use gitlab::{types, StatusState};
 use std::{
 	fs::{create_dir_all, remove_dir_all},
 	path::PathBuf,
+};
+
+use crate::{
+	args::ColorChoice,
+	color::{Style, StyledStr},
+	fmt::{Colorizer, Stream},
 };
 
 pub fn get_or_create_dir(dir: &str, keep: bool, update: bool, verbose: bool) -> Result<PathBuf> {
@@ -25,13 +31,36 @@ pub fn get_or_create_dir(dir: &str, keep: bool, update: bool, verbose: bool) -> 
 }
 
 /// Print the provided jobs list in reverse order (run order)
-pub fn print_jobs(message: String, jobs: &[types::Job]) {
-	println!("{}", message);
-	for job in jobs.iter().rev() {
-		println!(
-			"- #{} {} [{}]: {:?}",
-			job.id, job.name, job.stage, job.status
-		);
+pub fn print_jobs(mut msg: StyledStr, mode: ColorChoice, jobs: &[types::Job]) -> Result<()> {
+	if !jobs.is_empty() {
+		msg.none("\n");
+		for job in jobs.iter().rev() {
+			msg.none("- Job ");
+			msg.literal(format!("{}", job.id));
+			msg.none(format!(" {} ", job.name));
+			msg.hint(format!("[{}]", job.stage));
+			msg.none(": ");
+			msg.stylize(status_style(job.status), format!("{:?}", job.status));
+			msg.none("\n");
+		}
+		msg.none("\n");
 	}
-	println!("\n");
+	Colorizer::new(Stream::Stdout, mode)
+		.with_content(msg)
+		.print()
+		.with_context(|| "Failed to print")
+}
+
+pub(crate) fn status_style(status: StatusState) -> Option<Style> {
+	Some(match status {
+		StatusState::Success | StatusState::Running => Style::Good,
+		StatusState::Canceled | StatusState::Failed => Style::Error,
+		StatusState::WaitingForResource | StatusState::Skipped | StatusState::Pending => {
+			Style::Warning
+		}
+		StatusState::Created
+		| StatusState::Manual
+		| StatusState::Preparing
+		| StatusState::Scheduled => Style::Placeholder,
+	})
 }
