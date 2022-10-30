@@ -134,7 +134,7 @@ impl CliContext {
 		default
 			.or_else(|| self.repo.as_ref().and_then(|repo| repo.tag.as_ref()))
 			.ok_or_else(|| {
-				anyhow!("Can'f find a project tag. Specify one manually on the command line")
+				anyhow!("Can't find a project tag. Specify one manually on the command line")
 			})
 	}
 
