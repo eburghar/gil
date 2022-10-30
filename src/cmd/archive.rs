@@ -33,10 +33,10 @@ impl BatchConfig {
 	/// Initialize from a file
 	pub fn from_file(config: &str) -> Result<Self> {
 		// open configuration file
-		let file = File::open(&config).with_context(|| format!("Can't open {}", &config))?;
+		let file = File::open(&config).with_context(|| format!("Can't open {}", config))?;
 		// deserialize configuration
 		let config: Self =
-			serde_yaml::from_reader(file).with_context(|| format!("Can't read {}", &config))?;
+			serde_yaml::from_reader(file).with_context(|| format!("Can't read {}", config))?;
 		Ok(config)
 	}
 }
@@ -62,11 +62,9 @@ pub fn cmd(context: &CliContext, args: &args::Archive) -> Result<()> {
 				BatchConfig::from_file(config)?
 			} else {
 				// in command line we extract only 1 project given from command line arguments
-				// let project = get_project(&args.project)?;
-				// let tag = get_tag(&args.tag)?;
 				let project = context.get_project(args.project.as_ref())?;
-				let tag = context.get_tag(args.tag.as_ref())?;
-				BatchConfig::singleton(project.to_owned(), tag.to_owned())
+				let tag = context.get_tag(args.tag.as_ref(), &project)?;
+				BatchConfig::singleton(project.path_with_namespace, tag.name)
 			};
 
 			// create the dest directory
@@ -134,7 +132,7 @@ pub fn cmd(context: &CliContext, args: &args::Archive) -> Result<()> {
 						}
 						// remove project dir before update
 						remove_dir_all(&prj_dir)
-							.with_context(|| format!("Can't remove dir {}", prj_dir.display()))?;
+							.with_context(|| format!("Can't remove dir {:?}", &prj_dir))?;
 						commit = tag.commit.id.value();
 					}
 				}

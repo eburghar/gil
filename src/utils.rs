@@ -15,14 +15,14 @@ pub fn get_or_create_dir(dir: &str, keep: bool, update: bool, verbose: bool) -> 
 	let path = PathBuf::from(dir);
 	// remove destination dir if requested
 	if !keep && !update && path.exists() {
-		remove_dir_all(&path).with_context(|| format!("Can't remove dir {}", &dir))?;
+		remove_dir_all(&path).with_context(|| format!("Can't remove dir {}", dir))?;
 		if verbose {
 			println!("{} removed", &dir)
 		}
 	}
 	// create destination dir if necessary
 	if !path.exists() {
-		create_dir_all(&path).with_context(|| format!("Can't create dir {}", &dir))?;
+		create_dir_all(&path).with_context(|| format!("Can't create dir {}", dir))?;
 		if verbose {
 			println!("Creating dir {}", &dir);
 		}
@@ -36,7 +36,7 @@ pub fn print_jobs(mut msg: StyledStr, mode: ColorChoice, jobs: &[types::Job]) ->
 		msg.none("\n");
 		for job in jobs.iter().rev() {
 			msg.none("- Job ");
-			msg.literal(format!("{}", job.id));
+			msg.literal(job.id.to_string());
 			msg.none(format!(" {} ", job.name));
 			msg.hint(format!("[{}]", job.stage));
 			msg.none(": ");
