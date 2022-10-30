@@ -128,6 +128,16 @@ impl CliContext {
 		}
 	}
 
+	/// Returns the provided tag name (default) or the one extracted from the repo
+	/// or raises an error
+	pub fn get_tagexp<'a>(&'a self, default: Option<&'a String>) -> Result<&'a String> {
+		default
+			.or_else(|| self.repo.as_ref().and_then(|repo| repo.tag.as_ref()))
+			.ok_or_else(|| {
+				anyhow!("Can'f find a project tag. Specify one manually on the command line")
+			})
+	}
+
 	/// Returns the provided pipeline id (default) or the last pipeline id for a given project and tag
 	/// from gitlab or raises an error
 	pub fn get_pipeline(
