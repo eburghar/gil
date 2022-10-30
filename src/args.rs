@@ -3,7 +3,7 @@ use argh::FromArgValue;
 use argh::{FromArgs, TopLevelCommand};
 use std::{env, path::Path};
 
-#[cfg(feature = "color")]
+#[allow(dead_code)]
 #[derive(Copy, Clone, Debug)]
 /// Color mode
 pub enum ColorChoice {

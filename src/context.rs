@@ -69,10 +69,15 @@ impl CliContext {
 		}
 		.with_context(|| format!("Can't connect to {}", &config.host))?;
 
+		#[cfg(feature = "color")]
+		let color = opts.color;
+		#[cfg(not(feature = "color"))]
+		let color = ColorChoice::Never;
+
 		Ok(Self {
 			verbose: opts.verbose,
 			open: opts.open,
-			color: opts.color,
+			color,
 			gitlab,
 			config,
 			repo,
