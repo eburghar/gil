@@ -3,7 +3,7 @@ use crate::{args::Opts, oidc::login};
 use anyhow::{anyhow, Context, Result};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
-use std::{env, fs::File, path::PathBuf};
+use std::{env, fs::File, ops::Deref, path::PathBuf};
 
 /// Root configuration file
 #[derive(Deserialize)]
@@ -132,8 +132,17 @@ impl OAuth2Token {
 	}
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<String> for OAuth2Token {
 	fn into(self) -> String {
 		self.0
+	}
+}
+
+impl Deref for OAuth2Token {
+	type Target = String;
+
+	fn deref(&self) -> &Self::Target {
+		&self.0
 	}
 }

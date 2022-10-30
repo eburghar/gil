@@ -1,8 +1,10 @@
 mod archive;
 mod args;
 mod cmd;
+mod color;
 mod config;
 mod context;
+mod fmt;
 mod git;
 mod lockfile;
 mod oidc;
