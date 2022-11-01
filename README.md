@@ -28,7 +28,7 @@ add new ones. Feel free to fork or send PR.
 ## General use
 
 ```
-glctl 0.3.4
+glctl 0.4.0
 
 Usage: glctl [-c <config>] [-v] [-o] [--color <color>] [--no-cache] <command> [<args>]
 
@@ -80,7 +80,7 @@ Will protect all the tags (`*`) on the project
 ## Archive command
 
 ```
-glctl 0.3.4
+glctl 0.4.0
 
 Usage: glctl archive extract [<tag>] [-p <project>] [-b <batch>] [-s <strip>] [-r] [-d <dir>] [-k] [-u]
 
@@ -123,7 +123,7 @@ reextract archives.
 ## Tags command
 
 ```
-glctl 0.3.4
+glctl 0.4.0
 
 Usage: glctl tags <command> [<args>]
 
@@ -142,7 +142,7 @@ Allow to switch on and off tags protection.
 ## Pipeline command
 
 ```
-glctl 0.3.4
+glctl 0.4.0
 
 Usage: glctl pipeline <command> [<args>]
 
@@ -159,6 +159,34 @@ Commands:
   retry             Retry a pipeline
   log               Get log from a job
 ```
+
+### log command
+
+```
+glctl 0.4.0
+
+Usage: glctl pipeline log [<id>] [-p <project>] [-s <step>]
+
+Get log from a job
+
+Positional Arguments:
+  id                the job id to extract the job log from
+
+Options:
+  -p, --project     the project which owns the pipeline
+  -s, --step        the step to filter in the log
+  --help            display usage information
+```
+
+The log command has the hability to filter a given job step. You can for example focus on
+the script part of your job with
+
+```bash
+glctl pipeline log -s step_script
+```
+
+The name of the section is indicated in the log between brackets. Depending on the `color` mode, all
+colors may be removed from the log.
 
 ## Configuration
 

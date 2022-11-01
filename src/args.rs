@@ -4,7 +4,7 @@ use argh::{FromArgs, TopLevelCommand};
 use std::{env, path::Path};
 
 #[allow(dead_code)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 /// Color mode
 pub enum ColorChoice {
 	Auto,
@@ -211,6 +211,9 @@ pub struct PipelineLog {
 	#[argh(option, short = 'p')]
 	/// the project which owns the pipeline
 	pub project: Option<String>,
+	#[argh(option, short = 's')]
+	/// the step to filter in the log
+	pub step: Option<String>,
 	#[argh(positional)]
 	/// the job id to extract the job log from
 	pub id: Option<u64>,

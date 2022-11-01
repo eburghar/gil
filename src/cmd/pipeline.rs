@@ -54,9 +54,9 @@ pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
 			// get a reference (a tag or a branch)
 			let ref_ = context.get_ref(None, &project)?;
 			let pipeline = context.get_pipeline(cmd_args.id, &project, &ref_)?;
-			let jobs = context.get_jobs(&project, pipeline.id.value())?;
 
 			print_pipeline(&pipeline, &project, &ref_, context.color)?;
+			let jobs = context.get_jobs(&project, pipeline.id.value())?;
 			print_jobs(&jobs, context.color)?;
 
 			if context.open {
@@ -131,12 +131,12 @@ pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
 			];
 			let job = context.get_job(cmd_args.id, &project, &ref_, scopes.into_iter())?;
 			let endpoint = jobs::JobTrace::builder()
-				.project(project.path_with_namespace.to_string())
+				.project(project.path_with_namespace)
 				.job(job.id.value())
 				.build()?;
 
 			let log = api::raw(endpoint).query(&context.gitlab)?;
-			print_log(&log, &job, context.color)?;
+			print_log(&log, &job, cmd_args.step.as_ref(), context.color)?;
 			if context.open {
 				let _ = open::that(job.web_url);
 			}

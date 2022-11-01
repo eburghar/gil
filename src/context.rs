@@ -195,12 +195,12 @@ impl CliContext {
 
 	pub fn get_ref(&self, ref_: Option<&String>, project: &types::Project) -> Result<String> {
 		// get a reference (a tag or a branch)
-		self.get_tag(ref_, &project)
+		self.get_tag(ref_, project)
 			.map(|tag| tag.name)
 				.or_else(|_| {
 					self
 						// get branch from the context
-						.get_branch(None, &project)
+						.get_branch(None, project)
 						.map(|branch| branch.name)
 				})
 				.with_context(|| {
@@ -285,7 +285,7 @@ impl CliContext {
 					pipeline.id, &project.path_with_namespace, ref_
 				)
 			})?;
-			print_pipeline(&pipeline, &project, &ref_, self.color)?;
+			print_pipeline(&pipeline, project, ref_, self.color)?;
 			if jobs.len() > 1 {
 				print_jobs(&jobs, self.color)?;
 
