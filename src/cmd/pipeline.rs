@@ -1,9 +1,7 @@
 use crate::{
 	args::{self, PipelineCmd},
-	color::StyledStr,
 	context::CliContext,
-	fmt::{Colorizer, Stream},
-	utils::{print_jobs, status_style},
+	utils::{print_jobs, print_log, print_pipeline},
 };
 
 use anyhow::{Context, Result};
@@ -18,7 +16,6 @@ use gitlab::{
 	},
 	types,
 };
-use std::io::{stdout, Write};
 
 /// Command implementation
 pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
@@ -33,28 +30,17 @@ pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
 				.project(project.path_with_namespace.to_string())
 				.ref_(&ref_)
 				.build()?;
-			let pipeline: types::Pipeline = endpoint.query(&context.gitlab).with_context(|| {
-				format!(
-					"Failed to create pipeline for {} @ {}",
-					&project.path_with_namespace, &ref_
-				)
-			})?;
+			let pipeline: types::PipelineBasic =
+				endpoint.query(&context.gitlab).with_context(|| {
+					format!(
+						"Failed to create pipeline for {} @ {}",
+						&project.path_with_namespace, &ref_
+					)
+				})?;
 
+			print_pipeline(&pipeline, &project, &ref_, context.color)?;
 			let jobs = context.get_jobs(&project, pipeline.id.value())?;
-			let mut msg = StyledStr::new();
-			msg.none("Pipeline ");
-			msg.literal(pipeline.id.value().to_string());
-			msg.none(format!(
-				" ({} @ {}): ",
-				project.name_with_namespace.as_str(),
-				&ref_
-			));
-			msg.stylize(
-				status_style(pipeline.status),
-				format!("{:?}", pipeline.status),
-			);
-			msg.hint(format!(" ({})", pipeline.web_url));
-			print_jobs(msg, context.color, &jobs)?;
+			print_jobs(&jobs, context.color)?;
 
 			if context.open {
 				let _ = open::that(pipeline.web_url);
@@ -70,20 +56,8 @@ pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
 			let pipeline = context.get_pipeline(cmd_args.id, &project, &ref_)?;
 			let jobs = context.get_jobs(&project, pipeline.id.value())?;
 
-			let mut msg = StyledStr::new();
-			msg.none("Pipeline ");
-			msg.literal(pipeline.id.value().to_string());
-			msg.none(format!(
-				" ({} @ {}): ",
-				project.name_with_namespace.as_str(),
-				&ref_
-			));
-			msg.stylize(
-				status_style(pipeline.status),
-				format!("{:?}", pipeline.status),
-			);
-			msg.hint(format!(" ({})", pipeline.web_url));
-			print_jobs(msg, context.color, &jobs)?;
+			print_pipeline(&pipeline, &project, &ref_, context.color)?;
+			print_jobs(&jobs, context.color)?;
 
 			if context.open {
 				let _ = open::that(pipeline.web_url);
@@ -102,26 +76,15 @@ pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
 				.project(project.path_with_namespace.to_string())
 				.pipeline(pipeline.id.value())
 				.build()?;
-			let pipeline: types::Pipeline = endpoint.query(&context.gitlab).with_context(|| {
-				format!("Failed to cancel pipeline {}", &pipeline.id.to_string())
-			})?;
+			let pipeline: types::PipelineBasic =
+				endpoint.query(&context.gitlab).with_context(|| {
+					format!("Failed to cancel pipeline {}", &pipeline.id.to_string())
+				})?;
 
+			print_pipeline(&pipeline, &project, &ref_, context.color)?;
 			// list jobs after cancel
 			let jobs = context.get_jobs(&project, pipeline.id.value())?;
-			let mut msg = StyledStr::new();
-			msg.none("Pipeline ");
-			msg.literal(pipeline.id.to_string());
-			msg.none(format!(
-				" ({} @ {}): ",
-				project.name_with_namespace.as_str(),
-				&ref_
-			));
-			msg.stylize(
-				status_style(pipeline.status),
-				format!("{:?}", pipeline.status),
-			);
-			msg.hint(format!(" ({})", pipeline.web_url));
-			print_jobs(msg, context.color, &jobs)?;
+			print_jobs(&jobs, context.color)?;
 
 			if context.open {
 				let _ = open::that(pipeline.web_url);
@@ -140,26 +103,14 @@ pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
 				.project(project.path_with_namespace.to_string())
 				.pipeline(pipeline.id.value())
 				.build()?;
-			let pipeline: types::Pipeline = endpoint
+			let pipeline: types::PipelineBasic = endpoint
 				.query(&context.gitlab)
 				.with_context(|| format!("Failed to retry pipeline {}", pipeline.id))?;
 
+			print_pipeline(&pipeline, &project, &ref_, context.color)?;
 			// list jobs after retry
 			let jobs = context.get_jobs(&project, pipeline.id.value())?;
-			let mut msg = StyledStr::new();
-			msg.none("Pipeline");
-			msg.literal(format!(" {}", pipeline.id.value()));
-			msg.none(format!(
-				" ({} @ {}): ",
-				project.name_with_namespace.as_str(),
-				&ref_
-			));
-			msg.stylize(
-				status_style(pipeline.status),
-				format!("{:?}", pipeline.status),
-			);
-			msg.hint(format!(" ({})", pipeline.web_url));
-			print_jobs(msg, context.color, &jobs)?;
+			print_jobs(&jobs, context.color)?;
 
 			if context.open {
 				let _ = open::that(pipeline.web_url);
@@ -184,20 +135,8 @@ pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
 				.job(job.id.value())
 				.build()?;
 
-			let mut msg = StyledStr::new();
-			msg.none("Log for job ");
-			msg.literal(job.id.to_string());
-			msg.none(": ");
-			msg.stylize(status_style(job.status), format!("{:?}", job.status));
-			msg.hint(format!(" ({})", job.web_url));
-			msg.none("\n\n");
-			Colorizer::new(Stream::Stdout, context.color)
-				.with_content(msg)
-				.print()?;
 			let log = api::raw(endpoint).query(&context.gitlab)?;
-			// TODO: remove ansi-codes depending on color mode
-			stdout().write_all(&log)?;
-
+			print_log(&log, &job, context.color)?;
 			if context.open {
 				let _ = open::that(job.web_url);
 			}

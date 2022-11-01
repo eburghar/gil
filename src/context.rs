@@ -1,9 +1,8 @@
 use crate::{
 	args::{ColorChoice, Opts},
-	color::StyledStr,
 	config::{AuthType, Config, OAuth2Token},
 	git::GitProject,
-	utils::{print_jobs, status_style},
+	utils::{print_jobs, print_pipeline},
 };
 
 use anyhow::{anyhow, bail, Context, Result};
@@ -286,21 +285,9 @@ impl CliContext {
 					pipeline.id, &project.path_with_namespace, ref_
 				)
 			})?;
+			print_pipeline(&pipeline, &project, &ref_, self.color)?;
 			if jobs.len() > 1 {
-				let mut msg = StyledStr::new();
-				msg.none("Pipeline ");
-				msg.literal(pipeline.id.to_string());
-				msg.none(format!(
-					" ({} @ {}): ",
-					project.name_with_namespace.as_str(),
-					&ref_
-				));
-				msg.stylize(
-					status_style(pipeline.status),
-					format!("{:?}", pipeline.status),
-				);
-				msg.hint(format!(" ({})", pipeline.web_url));
-				print_jobs(msg, self.color, &jobs)?;
+				print_jobs(&jobs, self.color)?;
 
 				let job = match pipeline.status {
 					// return the first job in the same state than the pipeline
