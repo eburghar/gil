@@ -9,6 +9,7 @@ pub struct Archive<'a> {
 	#[builder(setter(into))]
 	project: NameOrId<'a>,
 	#[allow(dead_code)]
+	#[builder(setter(into))]
 	sha: String,
 }
 

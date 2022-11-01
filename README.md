@@ -28,7 +28,7 @@ add new ones. Feel free to fork or send PR.
 ## General use
 
 ```
-glctl 0.3.3
+glctl 0.3.4
 
 Usage: glctl [-c <config>] [-v] [-o] [--color <color>] [--no-cache] <command> [<args>]
 
@@ -50,7 +50,8 @@ Commands:
 
 ## Examples
 
-If you are in repository of a Gitlab project with the most recent tag at 0.1.0
+If you are in repository of a Gitlab project with the most recent tag at 0.1.0. If no tag
+is found it will use the HEAD commit id.
 
 ```bash
 gctl pipeline create
@@ -79,7 +80,7 @@ Will protect all the tags (`*`) on the project
 ## Archive command
 
 ```
-glctl 0.3.3
+glctl 0.3.4
 
 Usage: glctl archive extract [<tag>] [-p <project>] [-b <batch>] [-s <strip>] [-r] [-d <dir>] [-k] [-u]
 
@@ -122,7 +123,7 @@ reextract archives.
 ## Tags command
 
 ```
-glctl 0.3.3
+glctl 0.3.4
 
 Usage: glctl tags <command> [<args>]
 
@@ -141,11 +142,12 @@ Allow to switch on and off tags protection.
 ## Pipeline command
 
 ```
-glctl 0.3.3
+glctl 0.3.4
 
 Usage: glctl pipeline <command> [<args>]
 
-Manage project pipeline
+Manage pro. If no tag
+is found it will use the HEAD commit id.ject pipeline
 
 Options:
   --help            display usage information
@@ -164,7 +166,8 @@ The configuration is looked from theses places in that order :
 
 - `GLCTL_CONFIG` environment variable
 
-- `.glctl_config.yaml` in the working directory
+- `.glctl_. If no tag
+is found it will use the HEAD commit id.config.yaml` in the working directory
 
 - `config.yaml` inside the config directory (OS dependent). For Linux it is
    `~/.config/glctl/config.yaml`
@@ -194,5 +197,5 @@ in config file) and copy the id and secret to the configuration file.
 
 On successful login, the short-lived token is saved under the cache directory to speedup consecutive
 command invocations unless you specified `--no-cache`. When expired it is renewed automatically
-by folowing the oidc authentication flow, whithout requesting a password if your browser is still
+by folowing the oidc authentication flow, without requesting a password if your browser is still
 connected to Gitlab.

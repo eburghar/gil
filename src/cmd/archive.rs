@@ -144,8 +144,8 @@ pub fn cmd(context: &CliContext, args: &args::Archive) -> Result<()> {
 				}
 
 				let endpoint = Archive::builder()
-					.project(project.to_owned())
-					.sha(commit.to_owned())
+					.project(project.as_str())
+					.sha(commit)
 					.build()?;
 
 				// NOTE: api::raw returns a vec<u8>. It would be

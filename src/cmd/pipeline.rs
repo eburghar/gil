@@ -26,17 +26,17 @@ pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
 		PipelineCmd::Create(cmd_args) => {
 			// get project from command line or context
 			let project = context.get_project(cmd_args.project.as_ref())?;
-			// get tag from command line or context
-			let tag = context.get_tag(cmd_args.tag.as_ref(), &project)?;
+			// get a reference (a tag or a branch)
+			let ref_ = context.get_ref(cmd_args.tag.as_ref(), &project)?;
 
 			let endpoint = pipelines::CreatePipeline::builder()
 				.project(project.path_with_namespace.to_string())
-				.ref_(tag.name.to_owned())
+				.ref_(&ref_)
 				.build()?;
 			let pipeline: types::Pipeline = endpoint.query(&context.gitlab).with_context(|| {
 				format!(
 					"Failed to create pipeline for {} @ {}",
-					&project.path_with_namespace, &tag.name
+					&project.path_with_namespace, &ref_
 				)
 			})?;
 
@@ -44,7 +44,11 @@ pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
 			let mut msg = StyledStr::new();
 			msg.none("Pipeline ");
 			msg.literal(pipeline.id.value().to_string());
-			msg.none(": ");
+			msg.none(format!(
+				" ({} @ {}): ",
+				project.name_with_namespace.as_str(),
+				&ref_
+			));
 			msg.stylize(
 				status_style(pipeline.status),
 				format!("{:?}", pipeline.status),
@@ -61,14 +65,19 @@ pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
 		PipelineCmd::Status(cmd_args) => {
 			// get project from command line or context
 			let project = context.get_project(cmd_args.project.as_ref())?;
-			let tag = context.get_tag(None, &project)?;
-			let pipeline = context.get_pipeline(cmd_args.id, &project, &tag)?;
+			// get a reference (a tag or a branch)
+			let ref_ = context.get_ref(None, &project)?;
+			let pipeline = context.get_pipeline(cmd_args.id, &project, &ref_)?;
 			let jobs = context.get_jobs(&project, pipeline.id.value())?;
 
 			let mut msg = StyledStr::new();
 			msg.none("Pipeline ");
 			msg.literal(pipeline.id.value().to_string());
-			msg.none(": ");
+			msg.none(format!(
+				" ({} @ {}): ",
+				project.name_with_namespace.as_str(),
+				&ref_
+			));
 			msg.stylize(
 				status_style(pipeline.status),
 				format!("{:?}", pipeline.status),
@@ -85,8 +94,9 @@ pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
 		PipelineCmd::Cancel(cmd_args) => {
 			// get project from command line or context
 			let project = context.get_project(cmd_args.project.as_ref())?;
-			let tag = context.get_tag(None, &project)?;
-			let pipeline = context.get_pipeline(cmd_args.id, &project, &tag)?;
+			// get a reference (a tag or a branch)
+			let ref_ = context.get_ref(None, &project)?;
+			let pipeline = context.get_pipeline(cmd_args.id, &project, &ref_)?;
 
 			let endpoint = pipelines::CancelPipeline::builder()
 				.project(project.path_with_namespace.to_string())
@@ -101,6 +111,11 @@ pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
 			let mut msg = StyledStr::new();
 			msg.none("Pipeline ");
 			msg.literal(pipeline.id.to_string());
+			msg.none(format!(
+				" ({} @ {}): ",
+				project.name_with_namespace.as_str(),
+				&ref_
+			));
 			msg.stylize(
 				status_style(pipeline.status),
 				format!("{:?}", pipeline.status),
@@ -117,8 +132,9 @@ pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
 		PipelineCmd::Retry(cmd_args) => {
 			// get project from command line or context
 			let project = context.get_project(cmd_args.project.as_ref())?;
-			let tag = context.get_tag(None, &project)?;
-			let pipeline = context.get_pipeline(cmd_args.id, &project, &tag)?;
+			// get a reference (a tag or a branch)
+			let ref_ = context.get_ref(None, &project)?;
+			let pipeline = context.get_pipeline(cmd_args.id, &project, &ref_)?;
 
 			let endpoint = pipelines::RetryPipeline::builder()
 				.project(project.path_with_namespace.to_string())
@@ -133,7 +149,11 @@ pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
 			let mut msg = StyledStr::new();
 			msg.none("Pipeline");
 			msg.literal(format!(" {}", pipeline.id.value()));
-			msg.none(": ");
+			msg.none(format!(
+				" ({} @ {}): ",
+				project.name_with_namespace.as_str(),
+				&ref_
+			));
 			msg.stylize(
 				status_style(pipeline.status),
 				format!("{:?}", pipeline.status),
@@ -150,32 +170,32 @@ pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
 		PipelineCmd::Log(cmd_args) => {
 			// get project from command line or context
 			let project = context.get_project(cmd_args.project.as_ref())?;
-			let tag = context.get_tag(None, &project)?;
+			// get a reference (a tag or a branch)
+			let ref_ = context.get_ref(None, &project)?;
 			let scopes = [
 				JobScope::Running,
 				JobScope::Failed,
 				JobScope::Success,
 				JobScope::Canceled,
 			];
-			let job = context.get_job(cmd_args.id, &project, &tag, scopes.into_iter())?;
+			let job = context.get_job(cmd_args.id, &project, &ref_, scopes.into_iter())?;
 			let endpoint = jobs::JobTrace::builder()
 				.project(project.path_with_namespace.to_string())
 				.job(job.id.value())
 				.build()?;
 
 			let mut msg = StyledStr::new();
-			msg.none(format!("Log for job {}: ", job.id));
+			msg.none("Log for job ");
+			msg.literal(job.id.to_string());
+			msg.none(": ");
 			msg.stylize(status_style(job.status), format!("{:?}", job.status));
-			msg.none(format!(
-				" - {} @ {} ",
-				&project.path_with_namespace, &tag.name
-			));
-			msg.hint(format!("({})", job.web_url));
+			msg.hint(format!(" ({})", job.web_url));
 			msg.none("\n\n");
 			Colorizer::new(Stream::Stdout, context.color)
 				.with_content(msg)
 				.print()?;
 			let log = api::raw(endpoint).query(&context.gitlab)?;
+			// TODO: remove ansi-codes depending on color mode
 			stdout().write_all(&log)?;
 
 			if context.open {

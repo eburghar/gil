@@ -11,11 +11,15 @@ pub struct GitProject {
 	pub branch: Option<String>,
 	/// tag
 	pub tag: Option<String>,
+	// commit
+	pub commit: Option<String>,
 }
 
 impl GitProject {
 	pub fn from_currentdir() -> Option<Self> {
 		if let Some(repo) = current_dir().ok().and_then(|dir| discover(dir).ok()) {
+			// get the head id
+			let commit = repo.head_id().ok().map(|id| id.to_hex().to_string());
 			// get the local branch name
 			let branch = repo
 				.head_name()
@@ -68,6 +72,7 @@ impl GitProject {
 				host,
 				branch,
 				tag,
+				commit,
 			})
 		} else {
 			None

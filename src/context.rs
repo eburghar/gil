@@ -13,7 +13,7 @@ use gitlab::{
 			self,
 			jobs::{self, JobScope},
 			pipelines,
-			repository::tags,
+			repository::{branches, commits, tags},
 		},
 		Query,
 	},
@@ -91,7 +91,7 @@ impl CliContext {
 		let id = default.or_else(|| self.repo.as_ref().and_then(|repo| repo.name.as_ref()));
 		if let Some(id) = id {
 			projects::Project::builder()
-				.project(id.to_owned())
+				.project(id.as_str())
 				.build()?
 				.query(&self.gitlab)
 				.with_context(|| format!("Can't find a project named {}", id))
@@ -100,17 +100,46 @@ impl CliContext {
 		}
 	}
 
+	#[allow(dead_code)]
+	/// Returns the provided commit id (default) or the one extracted from the repo
+	/// or raises an error
+	pub fn get_commit(
+		&self,
+		default: Option<&String>,
+		project: &types::Project,
+	) -> Result<types::Commit> {
+		let commit = default.or_else(|| self.repo.as_ref().and_then(|repo| repo.commit.as_ref()));
+		if let Some(commit) = commit {
+			commits::Commit::builder()
+				.project(project.path_with_namespace.as_str())
+				.commit(commit)
+				.build()?
+				.query(&self.gitlab)
+				.with_context(|| {
+					format!(
+						"Can't find a commit {} for project {}",
+						commit, &project.path_with_namespace
+					)
+				})
+		} else {
+			bail!(
+				"Can't find a commit for project {}",
+				&project.name_with_namespace
+			)
+		}
+	}
+
 	/// Returns the provided tag name (default) or the one extracted from the repo
 	/// or raises an error
-	pub fn get_tag<'a>(
-		&'a self,
-		default: Option<&'a String>,
+	pub fn get_tag(
+		&self,
+		default: Option<&String>,
 		project: &types::Project,
 	) -> Result<types::Tag> {
 		let tag = default.or_else(|| self.repo.as_ref().and_then(|repo| repo.tag.as_ref()));
 		if let Some(tag) = tag {
 			tags::Tag::builder()
-				.project(project.path_with_namespace.to_owned())
+				.project(project.path_with_namespace.as_str())
 				.tag_name(tag)
 				.build()?
 				.query(&self.gitlab)
@@ -121,13 +150,40 @@ impl CliContext {
 					)
 				})
 		} else {
-			bail!(format!(
+			bail!(
 				"Can't find a tag for project {}. Specify one manually on the command line",
 				&project.path_with_namespace
-			))
+			)
 		}
 	}
 
+	/// Returns the provided branch name (default) or the one extracted from the repo
+	/// or raises an error
+	pub fn get_branch(
+		&self,
+		default: Option<&String>,
+		project: &types::Project,
+	) -> Result<types::RepoBranch> {
+		let branch = default.or_else(|| self.repo.as_ref().and_then(|repo| repo.branch.as_ref()));
+		if let Some(branch) = branch {
+			branches::Branch::builder()
+				.project(project.path_with_namespace.as_str())
+				.branch(branch)
+				.build()?
+				.query(&self.gitlab)
+				.with_context(|| {
+					format!(
+						"Can't find a branch {} for project {}",
+						branch, &project.name_with_namespace
+					)
+				})
+		} else {
+			bail!(
+				"Can't find a branch for project {}.",
+				&project.path_with_namespace
+			)
+		}
+	}
 	/// Returns the provided tag name (default) or the one extracted from the repo
 	/// or raises an error
 	pub fn get_tagexp<'a>(&'a self, default: Option<&'a String>) -> Result<&'a String> {
@@ -138,17 +194,32 @@ impl CliContext {
 			})
 	}
 
-	/// Returns the provided pipeline id (default) or the last pipeline id for a given project and tag
+	pub fn get_ref(&self, ref_: Option<&String>, project: &types::Project) -> Result<String> {
+		// get a reference (a tag or a branch)
+		self.get_tag(ref_, &project)
+			.map(|tag| tag.name)
+				.or_else(|_| {
+					self
+						// get branch from the context
+						.get_branch(None, &project)
+						.map(|branch| branch.name)
+				})
+				.with_context(|| {
+					anyhow!("Failed to find a suitable reference for project {} to build the pipeline upon.", &project.name_with_namespace)
+				})
+	}
+
+	/// Returns the provided pipeline id (default) or the last pipeline id for a given project and ref
 	/// from gitlab or raises an error
 	pub fn get_pipeline(
 		&self,
 		default: Option<u64>,
 		project: &types::Project,
-		tag: &types::Tag,
+		ref_: &String,
 	) -> Result<types::PipelineBasic> {
 		if let Some(id) = default {
 			let endpoint = pipelines::Pipeline::builder()
-				.project(project.path_with_namespace.to_owned())
+				.project(project.path_with_namespace.as_str())
 				.pipeline(id)
 				.build()?;
 			let pipeline = endpoint.query(&self.gitlab).with_context(|| {
@@ -160,21 +231,22 @@ impl CliContext {
 			Ok(pipeline)
 		} else {
 			let endpoint = pipelines::Pipelines::builder()
-				.project(project.path_with_namespace.to_owned())
-				.ref_(tag.name.to_owned())
+				.project(project.path_with_namespace.as_str())
+				.ref_(ref_)
 				.build()?;
 			let pipelines: Vec<_> = endpoint.query(&self.gitlab).with_context(|| {
 				format!(
 					"Failed to list pipeline for {} @ {}",
-					&project.path_with_namespace, &tag.name
+					&project.path_with_namespace, ref_
 				)
 			})?;
 
 			pipelines.into_iter().next().ok_or_else(|| {
-				anyhow!(format!(
+				anyhow!(
 					"Unable to determine the latest pipeline id for {} @ {}",
-					&project.path_with_namespace, &tag.name
-				))
+					&project.path_with_namespace,
+					ref_
+				)
 			})
 		}
 	}
@@ -185,7 +257,7 @@ impl CliContext {
 		&self,
 		default: Option<u64>,
 		project: &types::Project,
-		tag: &types::Tag,
+		ref_: &String,
 		scopes: I,
 	) -> Result<types::Job>
 	where
@@ -193,7 +265,7 @@ impl CliContext {
 	{
 		if let Some(id) = default {
 			let endpoint = jobs::Job::builder()
-				.project(project.path_with_namespace.to_owned())
+				.project(project.path_with_namespace.as_str())
 				.job(id)
 				.build()?;
 			let job: types::Job = endpoint
@@ -201,9 +273,9 @@ impl CliContext {
 				.with_context(|| format!("Unable to get the job {}", id))?;
 			Ok(job)
 		} else {
-			let pipeline = self.get_pipeline(None, project, tag)?;
+			let pipeline = self.get_pipeline(None, project, ref_)?;
 			let endpoint = pipelines::PipelineJobs::builder()
-				.project(project.path_with_namespace.to_owned())
+				.project(project.path_with_namespace.as_str())
 				.pipeline(pipeline.id.value())
 				.include_retried(true)
 				.scopes(scopes)
@@ -211,14 +283,18 @@ impl CliContext {
 			let jobs: Vec<types::Job> = endpoint.query(&self.gitlab).with_context(|| {
 				format!(
 					"Failed to list jobs for the pipeline {} {} @ {}",
-					pipeline.id, &project.path_with_namespace, &tag.name
+					pipeline.id, &project.path_with_namespace, ref_
 				)
 			})?;
 			if jobs.len() > 1 {
 				let mut msg = StyledStr::new();
 				msg.none("Pipeline ");
 				msg.literal(pipeline.id.to_string());
-				msg.none(": ");
+				msg.none(format!(
+					" ({} @ {}): ",
+					project.name_with_namespace.as_str(),
+					&ref_
+				));
 				msg.stylize(
 					status_style(pipeline.status),
 					format!("{:?}", pipeline.status),
@@ -239,10 +315,11 @@ impl CliContext {
 				Ok(job)
 			} else {
 				jobs.into_iter().last().ok_or_else(|| {
-					anyhow!(format!(
+					anyhow!(
 						"Unable to determine the latest job id for {} @ {}",
-						&project.path_with_namespace, &tag.name
-					))
+						&project.path_with_namespace,
+						ref_
+					)
 				})
 			}
 		}
@@ -250,7 +327,7 @@ impl CliContext {
 
 	pub fn get_jobs(&self, project: &types::Project, pipeline: u64) -> Result<Vec<types::Job>> {
 		let endpoint = pipelines::PipelineJobs::builder()
-			.project(project.path_with_namespace.to_owned())
+			.project(project.path_with_namespace.as_str())
 			.pipeline(pipeline)
 			.include_retried(true)
 			.build()?;
@@ -266,8 +343,8 @@ impl CliContext {
 	pub fn get_tag_commit(&self, project: &String, tag: &str) -> Result<types::Tag> {
 		// get commit sha associated with tag
 		let endpoint = tags::Tag::builder()
-			.project(project.to_owned())
-			.tag_name(tag.to_owned())
+			.project(project.as_str())
+			.tag_name(tag)
 			.build()?;
 		let res: types::Tag = endpoint.query(&self.gitlab).with_context(|| {
 			format!(

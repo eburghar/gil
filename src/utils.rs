@@ -61,6 +61,6 @@ pub(crate) fn status_style(status: StatusState) -> Option<Style> {
 		StatusState::Created
 		| StatusState::Manual
 		| StatusState::Preparing
-		| StatusState::Scheduled => Style::Placeholder,
+		| StatusState::Scheduled => Style::Literal,
 	})
 }
