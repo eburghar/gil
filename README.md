@@ -1,34 +1,34 @@
 # glctl
 
-`glctl` aims to ease interactions between a local git repository and its Gitlab counterpart. As such
-it is not a [glab](https://gitlab.com/gitlab-org/cli) replacement, nor a tool to administrate Gitlab
-from the command line.
-
-To achieve that goal (WIP):
+`glctl` aims to ease interactions between a local git repository and its Gitlab counterpart, and
+to achieve that goal:
 
 - it uses oauth2 authentication: meaning that if your browser is connected to Gitlab no password is
   requested, and
 
-- try to infer reasonable default arguments based on  repository informations (project name,
-  tag, ...) and the Gitlab context (pipeline status, ...) to always have the minimal words to type
+- try to infer reasonable default arguments based on repository informations (project name,
+  tag, ...) and the Gitlab context (pipeline status, ...), so you don't have unnecessary words to type
   for the common cases.
 
-It offers for the moment only 3 commands that are part of my regular workflows, but it is easy to
-add new ones. Feel free to fork or send PR.
+It offers for the moment only 4 commands that are part of my regular workflows and spared me a lot
+of time from the web interface. It is easy to add new commands though so feel free to fork or send
+PR.
 
   - `archive`: allows to extract projects archives from a Gitlab instance whithout having to install
-    git or a shell or any toolchain (npm, pypi, ...), greatly reducing the surface attack and the
+    git or a shell or any toolchain (npm, pypi, ...), greatly reducing the surface attack and 
     execution speed. It's specially useful in containers that need to specialize really quickly at
-    initialization and extract a defined set of arquives.
+    initialization and extract a defined set of archives.
 
   - `tags`: allows to protect and unprotect tags
 
   - `pipeline`: triggers a pipeline creation, see status, get log, cancel and retry
+  
+  - `project`: display information about gitlab project (mainly to open the page in the browser)
 
 ## General use
 
 ```
-glctl 0.5.0
+glctl 0.5.1
 
 Usage: glctl [-c <config>] [-v] [-o] [--color <color>] [--no-cache] <command> [<args>]
 
@@ -46,57 +46,98 @@ Commands:
   tags              Manage project tags
   pipeline          Manage project pipeline
   archive           Handle project archives
+  project           Display information about project
 ```
 
-## Examples
+## Modus operandi
 
-`glctl` try to find a remote reference to apply the operations upon, and unless you are giving
-explicitely a reference with a command line argument, it will try to find one using the folowing
-heuristic :
+If no clue is given from the command line arguments, `glctl` tries to gather informations by
+first locating the git root directory, starting from the working directory and checking parents
+directories if necessary :
 
-1. in case several tags are pointing to the commit[^1], try to find the greatest semver tag (x.y.z)
+1. The name of the gitlab project to work with is derived from a remote url it finds in the git
+   configuration. It uses the url of the gitlab instance indicated in its configuration file
+   for that.
 
-1. if this doesn't work, tries to find the latest tag with describe
+2. It then try to find a remote reference to apply the operations upon using the following
+   heuristic :
 
-1. it this doesn't work then use the branch name
-
-```bash
-gctl pipeline create
-```
-
-Will create a new pipeline and shows immediately its status
-
-```bash
-glctl -o pipeline status
-```
-
-Will show the status of the latest pipeline along its jobs and try to open the pipeline page in
-the browser
-
-```bash
-glctl -o pipeline log
-```
-
-Depending of the state of the latest pipeline, this will show the latest log in the same state. By
-default it shows only the `script` part of the job (a section named `step_script`), and hides the
-collapsed sections.
-
-```bash
-glctl tags protect
-```
+   1. in case several tags are pointing to the commit[^1], try to find the greatest semver tag (x.y.z)
+   
+   2. if this doesn't work, tries to find the latest tag with describe
+   
+   3. it this doesn't work then use the current branch name
   
-Will protect all the tags (`*`) on the project
-
 [^1]: My containers build scripts (`Containerfile`) are generally just installing packages
 (see [A better way to build containers images](https://itsufficient.me/blog/alpine-container/#containerfile-can-be-dumber)).
 The version of the package to install is given by the CI/CD script with an `ARG` directive. As a
 consequence the `Containerfile` is not changing very often, and I can endup having a lot of
 different versions pointing to the same commit.
 
+### Basic workflows
+
+First define an alias for `glctl` :
+
+```bash
+# better name for glctl
+alias gil=glctl
+```
+
+Say you are in a project repository hosted on your gitlab instance. The project has a CI/CD configuration
+that triggers a build for each commit with a protected tag. If you push a new tag :
+
+```bash
+git commit -am 'new release'
+git tag 0.3.0
+git push --tags
+```
+
+You can check that the triggered pipeline is correctly running with :
+
+```bash
+gil pipeline status
+```
+
+If you want to check log :
+
+```bash
+gil pipeline log
+```
+
+Based on the latest pipeline status (on 0.3.0) it will display the lasted failed, successful or
+running job. 
+
+You can open the project page on a new tab in your browser :
+
+```bash
+gil -o project
+```
+
+For some reasons, I like to rewrite history to fix some typos and rewrite tags when code doesn't
+change. For that you need first to unprotect the (`*`) tags from the project :
+
+```bash
+gil tags unprotect
+```
+
+Then force push, delete tag (local and remote), retag, reprotect and push.
+
+To manually trigger a build :
+
+```bash
+gil pipeline create
+```
+
+Sometimes you want to quickly extract a project archive :
+
+```bash
+git archive extract -p group/project 0.5.0 -r
+```
+
 ## Archive command
 
 ```
-glctl 0.5.0
+glctl 0.5.1
 
 Usage: glctl archive extract [<tag>] [-p <project>] [-b <batch>] [-s <strip>] [-r] [-d <dir>] [-k] [-u]
 
@@ -135,11 +176,10 @@ archive on disk.
 In update mode, a lock file containing the hash of latest commit is used to decide if we need to
 reextract archives.
 
-
 ## Tags command
 
 ```
-glctl 0.5.0
+glctl 0.5.1
 
 Usage: glctl tags <command> [<args>]
 
@@ -158,12 +198,11 @@ Allow to switch on and off tags protection. Without argument it will (un)protect
 ## Pipeline command
 
 ```
-glctl 0.5.0
+glctl 0.5.1
 
 Usage: glctl pipeline <command> [<args>]
 
-Manage pro. If no tag
-is found it will use the HEAD commit id.ject pipeline
+Manage project pipeline
 
 Options:
   --help            display usage information
@@ -179,7 +218,7 @@ Commands:
 ### log sub command
 
 ```
-glctl 0.5.0
+glctl 0.5.1
 
 Usage: glctl pipeline log [<id>] [-p <project>] [-s <step>] [-a]
 
@@ -195,15 +234,17 @@ Options:
   --help            display usage information
 ```
 
-The log command shows only the section `step_script` and hide collapsed sections. To
-show everything do
+By default it shows only the `script` part of the job (a section named `step_script`), and hides the
+collapsed sections. Hidden sections are indicated in separated (colored) lines between `>` and `<`.
+The section ids are indicated between brackets.
+
+To show all sections, do
 
 ```bash
 glctl pipeline log -a
 ```
 
-The name of the section is indicated in the log between brackets. Depending on the `color` mode, all
-colors may be removed from the log.
+Depending on the `color` mode, all colors (ANSI codes) may be striped out from the log.
 
 ## Configuration
 

@@ -61,9 +61,9 @@ impl GitProject {
 				.references()
 				.ok()
 				.and_then(|platform| {
-					// browser all repo tags (TODO: limit to current branch)
+					// browse all repo tags
 					platform.tags().ok().map(|tags| {
-						// filter the tags
+						// an filter the ones
 						tags.filter_map(|r| {
 							r.ok()
 								// that are pointing to head commit
