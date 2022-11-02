@@ -302,10 +302,21 @@ pub fn print_jobs(jobs: &[types::Job], mode: ColorChoice) -> Result<()> {
 		}
 		msg.none("\n");
 	}
-	Colorizer::new(Stream::Stdout, mode)
-		.with_content(msg)
-		.print()
-		.with_context(|| "Failed to print")
+	print_msg(msg, mode)
+}
+
+pub fn print_project(project: &types::Project, ref_: &String, mode: ColorChoice) -> Result<()> {
+	let mut msg = StyledStr::new();
+	msg.none("Project ");
+	msg.literal(&project.id.to_string());
+	msg.none(" ( ");
+	msg.literal(&project.name_with_namespace);
+	msg.none(" @ ");
+	msg.literal(ref_);
+	msg.none(" ) ");
+	msg.hint(format!("({})", &project.web_url));
+	msg.none("\n");
+	print_msg(msg, mode)
 }
 
 pub(crate) fn status_style(status: StatusState) -> Option<Style> {

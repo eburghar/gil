@@ -24,11 +24,13 @@ add new ones. Feel free to fork or send PR.
   - `tags`: allows to protect and unprotect tags
 
   - `pipeline`: triggers a pipeline creation, see status, get log, cancel and retry
+  
+  - `project`: display information about gitlab project (mainly to open the page in the browser)
 
 ## General use
 
 ```
-glctl 0.5.0
+glctl 0.5.1
 
 Usage: glctl [-c <config>] [-v] [-o] [--color <color>] [--no-cache] <command> [<args>]
 
@@ -46,6 +48,7 @@ Commands:
   tags              Manage project tags
   pipeline          Manage project pipeline
   archive           Handle project archives
+  project           Display information about project
 ```
 
 ## Examples
@@ -60,8 +63,16 @@ heuristic :
 
 1. it this doesn't work then use the branch name
 
+
 ```bash
-gctl pipeline create
+glctl -o project
+```
+
+Show information about the project and open the project's page in the browser
+
+
+```bash
+glctl pipeline create
 ```
 
 Will create a new pipeline and shows immediately its status
@@ -96,7 +107,7 @@ different versions pointing to the same commit.
 ## Archive command
 
 ```
-glctl 0.5.0
+glctl 0.5.1
 
 Usage: glctl archive extract [<tag>] [-p <project>] [-b <batch>] [-s <strip>] [-r] [-d <dir>] [-k] [-u]
 
@@ -139,7 +150,7 @@ reextract archives.
 ## Tags command
 
 ```
-glctl 0.5.0
+glctl 0.5.1
 
 Usage: glctl tags <command> [<args>]
 
@@ -158,7 +169,7 @@ Allow to switch on and off tags protection. Without argument it will (un)protect
 ## Pipeline command
 
 ```
-glctl 0.5.0
+glctl 0.5.1
 
 Usage: glctl pipeline <command> [<args>]
 
@@ -179,7 +190,7 @@ Commands:
 ### log sub command
 
 ```
-glctl 0.5.0
+glctl 0.5.1
 
 Usage: glctl pipeline log [<id>] [-p <project>] [-s <step>] [-a]
 

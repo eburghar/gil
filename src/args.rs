@@ -59,6 +59,7 @@ pub enum SubCommand {
 	Tags(Tags),
 	Build(Pipeline),
 	Archive(Archive),
+	Project(Project),
 }
 
 #[derive(FromArgs)]
@@ -121,7 +122,7 @@ pub struct TagsProtect {
 	/// the project to protect tags from
 	pub project: Option<String>,
 	#[argh(positional, default = "\"*\".to_string()")]
-	/// tag expression (default: *)
+	/// tag expression: '*' (default)
 	pub tag: String,
 }
 
@@ -133,7 +134,7 @@ pub struct TagsUnprotect {
 	/// the project to protect tags from
 	pub project: Option<String>,
 	#[argh(positional, default = "\"*\".to_string()")]
-	/// tag expression (defautl: *)
+	/// tag expression: '*' (default)
 	pub tag: String,
 }
 
@@ -176,8 +177,8 @@ pub struct PipelineCreate {
 	/// the project which owns the pipeline
 	pub project: Option<String>,
 	#[argh(positional)]
-	/// tag
-	pub tag: Option<String>,
+	/// reference (tag or branch)
+	pub ref_: Option<String>,
 }
 
 #[derive(FromArgs)]
@@ -247,4 +248,16 @@ pub fn from_env<T: TopLevelCommand>() -> T {
 			Err(()) => 1,
 		})
 	})
+}
+
+#[derive(FromArgs)]
+#[argh(subcommand, name = "project")]
+/// Display information about project
+pub struct Project {
+	#[argh(option, short = 'p')]
+	/// the project to protect tags from
+	pub project: Option<String>,
+	#[argh(positional)]
+	/// reference (tag or branch)
+	pub ref_: Option<String>,
 }
