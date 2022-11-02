@@ -136,7 +136,7 @@ pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
 				.build()?;
 
 			let log = api::raw(endpoint).query(&context.gitlab)?;
-			print_log(&log, &job, cmd_args.step.as_ref(), context.color)?;
+			print_log(&log, &job, cmd_args, context.color)?;
 			if context.open {
 				let _ = open::that(job.web_url);
 			}

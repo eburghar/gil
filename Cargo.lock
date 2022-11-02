@@ -1195,7 +1195,7 @@ dependencies = [
 
 [[package]]
 name = "glctl"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "argh",
@@ -1209,6 +1209,7 @@ dependencies = [
  "indoc",
  "open",
  "openidconnect",
+ "semver",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -2077,6 +2078,12 @@ dependencies = [
  "ring",
  "untrusted",
 ]
+
+[[package]]
+name = "semver"
+version = "1.0.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e25dfac463d778e353db5be2449d1cce89bd6fd23c9f1ea21310ce6e5a1b29c4"
 
 [[package]]
 name = "serde"

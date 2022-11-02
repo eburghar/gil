@@ -28,7 +28,7 @@ add new ones. Feel free to fork or send PR.
 ## General use
 
 ```
-glctl 0.4.0
+glctl 0.5.0
 
 Usage: glctl [-c <config>] [-v] [-o] [--color <color>] [--no-cache] <command> [<args>]
 
@@ -50,26 +50,36 @@ Commands:
 
 ## Examples
 
-If you are in repository of a Gitlab project with the most recent tag at 0.1.0. If no tag
-is found it will use the HEAD commit id.
+`glctl` try to find a remote reference to apply the operations upon, and unless you are giving
+explicitely a reference with a command line argument, it will try to find one using the folowing
+heuristic :
+
+1. in case several tags are pointing to the commit[^1], try to find the greatest semver tag (x.y.z)
+
+1. if this doesn't work, tries to find the latest tag with describe
+
+1. it this doesn't work then use the branch name
 
 ```bash
 gctl pipeline create
 ```
 
-Will create a new pipeline over 0.1.0
+Will create a new pipeline and shows immediately its status
 
 ```bash
 glctl -o pipeline status
 ```
 
-Will show the status of pipeline and its jobs and open the pipeline page in the browser
+Will show the status of the latest pipeline along its jobs and try to open the pipeline page in
+the browser
 
 ```bash
 glctl -o pipeline log
 ```
 
-Depending of the state of the latest pipeline, this will show log in the same state of the latest job.
+Depending of the state of the latest pipeline, this will show the latest log in the same state. By
+default it shows only the `script` part of the job (a section named `step_script`), and hides the
+collapsed sections.
 
 ```bash
 glctl tags protect
@@ -77,10 +87,16 @@ glctl tags protect
   
 Will protect all the tags (`*`) on the project
 
+[^1]: My containers build scripts (`Containerfile`) are generally just installing packages
+(see [A better way to build containers images](https://itsufficient.me/blog/alpine-container/#containerfile-can-be-dumber)).
+The version of the package to install is given by the CI/CD script with an `ARG` directive. As a
+consequence the `Containerfile` is not changing very often, and I can endup having a lot of
+different versions pointing to the same commit.
+
 ## Archive command
 
 ```
-glctl 0.4.0
+glctl 0.5.0
 
 Usage: glctl archive extract [<tag>] [-p <project>] [-b <batch>] [-s <strip>] [-r] [-d <dir>] [-k] [-u]
 
@@ -123,7 +139,7 @@ reextract archives.
 ## Tags command
 
 ```
-glctl 0.4.0
+glctl 0.5.0
 
 Usage: glctl tags <command> [<args>]
 
@@ -137,12 +153,12 @@ Commands:
   unprotect         Unprotect a project tag(s)
 ```
 
-Allow to switch on and off tags protection.
+Allow to switch on and off tags protection. Without argument it will (un)protect all tags (matching `*`).
 
 ## Pipeline command
 
 ```
-glctl 0.4.0
+glctl 0.5.0
 
 Usage: glctl pipeline <command> [<args>]
 
@@ -160,12 +176,12 @@ Commands:
   log               Get log from a job
 ```
 
-### log command
+### log sub command
 
 ```
-glctl 0.4.0
+glctl 0.5.0
 
-Usage: glctl pipeline log [<id>] [-p <project>] [-s <step>]
+Usage: glctl pipeline log [<id>] [-p <project>] [-s <step>] [-a]
 
 Get log from a job
 
@@ -174,15 +190,16 @@ Positional Arguments:
 
 Options:
   -p, --project     the project which owns the pipeline
-  -s, --step        the step to filter in the log
+  -s, --step        the section to show in the log: step_script (default)
+  -a, --all         show all sections
   --help            display usage information
 ```
 
-The log command has the hability to filter a given job step. You can for example focus on
-the script part of your job with
+The log command shows only the section `step_script` and hide collapsed sections. To
+show everything do
 
 ```bash
-glctl pipeline log -s step_script
+glctl pipeline log -a
 ```
 
 The name of the section is indicated in the log between brackets. Depending on the `color` mode, all
@@ -227,3 +244,5 @@ On successful login, the short-lived token is saved under the cache directory to
 command invocations unless you specified `--no-cache`. When expired it is renewed automatically
 by folowing the oidc authentication flow, without requesting a password if your browser is still
 connected to Gitlab.
+
+---

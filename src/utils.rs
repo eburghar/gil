@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::{
-	args::ColorChoice,
+	args::{ColorChoice, PipelineLog},
 	color::{Style, StyledStr},
 	fmt::{Colorizer, Stream},
 };
@@ -34,7 +34,7 @@ pub fn get_or_create_dir(dir: &str, keep: bool, update: bool, verbose: bool) -> 
 pub fn print_log(
 	log: &[u8],
 	job: &types::Job,
-	step: Option<&String>,
+	args: &PipelineLog,
 	mode: ColorChoice,
 ) -> Result<()> {
 	let mut msg = StyledStr::new();
@@ -48,10 +48,10 @@ pub fn print_log(
 		.with_content(msg)
 		.print()?;
 
-	_print_log(log, step, mode)
+	_print_log(log, args, mode)
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 /// Marker for section start and end
 enum SectionType {
 	Start,
@@ -75,20 +75,22 @@ impl FromStr for SectionType {
 #[derive(Clone, Debug)]
 struct SectionError;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Parsing result of a log section
 struct Section {
 	type_: SectionType,
-	// id: String,
+	// timestamp: String,
 	name: String,
+	collapsed: bool,
 }
 
 impl FromStr for Section {
 	type Err = SectionError;
 
+	/// dump parser for https://docs.gitlab.com/ee/ci/jobs/#expand-and-collapse-job-log-sections
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		if s.starts_with("section_start:") || s.starts_with("section_end:") {
-			// section_type:id:name
+			// section_type:id:name[flags]
 			let info: [&str; 3] = s
 				// remove leading \r
 				.trim()
@@ -96,11 +98,22 @@ impl FromStr for Section {
 				.collect::<Vec<&str>>()
 				.try_into()
 				.unwrap();
+			// string to enum
 			let type_ = SectionType::from_str(info[0])?;
+			let name = info[2];
+			// try to separate name and flags
+			let name_flags = name
+				.find('[')
+				.and_then(|i| name.find(']').map(|j| (&name[..i], &name[i + 1..j])));
 			Ok(Self {
 				type_,
-				// id: info[1].to_owned(),
-				name: info[2].to_owned(),
+				// timestamp: info[1].to_owned(),
+				name: name_flags
+					.map(|(n, _)| n.to_owned())
+					.unwrap_or_else(|| name.to_owned()),
+				collapsed: name_flags
+					.map(|(_, flags)| flags == "collapsed=true")
+					.unwrap_or(false),
 			})
 		} else {
 			Err(SectionError)
@@ -117,41 +130,60 @@ enum State {
 /// Structure to drive the sections parsing
 struct StateMachine {
 	pub state: State,
-	pub sections: Vec<String>,
+	pub sections: Vec<Section>,
 }
 
 impl Default for StateMachine {
 	fn default() -> Self {
 		Self {
 			state: State::Text,
-			sections: Vec::<String>::default(),
+			sections: Vec::default(),
 		}
 	}
 }
 
 impl StateMachine {
-	fn show_line(&self, step: Option<&String>) -> bool {
-		// show line if we have no filter or we are outside of any section
-		// or inside a section of the name provided
-		step.is_none()
+	fn show_line(&self, args: &PipelineLog) -> bool {
+		// show line if we have no filter
+		args.all
+			// if we outside of any sections
 			|| self.sections.is_empty()
-			|| self.sections.iter().any(|name| name == step.unwrap())
+			// if we are inside a non collapsed section that matches the given filter
+			|| (self
+				.sections
+				.iter()
+				.all(|section| !section.collapsed)
+				&& self
+				.sections
+				.iter()
+				.any(|section| section.name == args.step))
 	}
 }
 
-fn print_section(title: &str, section: &Section, mode: ColorChoice) -> Result<()> {
+fn print_section(title: &str, section: &Section, show_line: bool, colored: bool) -> Result<()> {
 	let mut msg = StyledStr::new();
 
 	msg.warning(format!("\n> {} [", title));
 	msg.literal(&section.name);
 	msg.warning("]");
+	if !show_line {
+		msg.warning(" <");
+		if section.collapsed && colored {
+			msg.none("\n");
+		}
+	}
 	msg.none("\n");
 
-	print_msg(msg, mode)
+	print_msg(
+		msg,
+		colored
+			.then(|| ColorChoice::Always)
+			.unwrap_or(ColorChoice::Never),
+	)
 }
 
 /// parse the log coming from gitlab and filter sections if necessary
-fn _print_log(log: &[u8], step: Option<&String>, mode: ColorChoice) -> Result<()> {
+fn _print_log(log: &[u8], args: &PipelineLog, mode: ColorChoice) -> Result<()> {
 	use std::io::{BufRead, BufReader};
 
 	let colored =
@@ -161,14 +193,11 @@ fn _print_log(log: &[u8], step: Option<&String>, mode: ColorChoice) -> Result<()
 	let mut state = StateMachine::default();
 	while let Some(Ok(line)) = reader.next() {
 		// evaluate show_line for each line
-		let mut show_line = state.show_line(step);
+		let mut show_line = state.show_line(args);
 		for (_effect, s) in yew_ansi::get_sgr_segments(&line) {
-			// reevaluate show_line for each segments
-			show_line = state.show_line(step);
 			match state.state {
 				State::Text => {
 					if let Ok(section) = Section::from_str(s) {
-						state.sections.push(section.name.clone());
 						state.state = State::Section(section);
 					} else {
 						// when not in color mode we need to print the segment without style
@@ -180,29 +209,36 @@ fn _print_log(log: &[u8], step: Option<&String>, mode: ColorChoice) -> Result<()
 					}
 				}
 				State::Section(ref section) => {
-					// start of new section
-					if section.type_ == SectionType::Start {
-						print_section(s, section, mode)?;
-						state.state = State::Text;
-						// line has already been printed so force to skip in colored mode
-						if colored {
-							if show_line {
-								print_msg("\n".into(), mode)?;
-							}
-							show_line = false;
-						}
-					// end of a section
-					} else {
-						state.sections.pop();
-						if let Ok(section) = Section::from_str(s) {
-							state.sections.push(section.name.clone());
-							state.state = State::Section(section);
-						} else {
+					match section.type_ {
+						// start of new section
+						SectionType::Start => {
+							state.sections.push(section.clone());
+							// reevaluate show_line when changing section
+							show_line = state.show_line(args);
+							print_section(s, section, show_line, colored)?;
 							state.state = State::Text;
+							// line has already been printed so force to skip in colored mode
+							if colored {
+								if show_line {
+									print_msg("\n".into(), mode)?;
+								}
+								show_line = false;
+							}
 						}
-						// line has already been printed so force to skip in colored mode
-						if colored {
-							show_line = false;
+						// end of a section
+						SectionType::End => {
+							state.sections.pop();
+							// reevaluate show_line when changing section
+							show_line = state.show_line(args);
+							// stay in section state if current line is a start or end
+							state.state = Section::from_str(s)
+								.ok()
+								.map(State::Section)
+								.unwrap_or(State::Text);
+							// line has already been printed so force to skip in colored mode
+							if colored {
+								show_line = false;
+							}
 						}
 					}
 				}
