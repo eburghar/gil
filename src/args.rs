@@ -72,9 +72,6 @@ pub struct ArchiveExtract {
 	#[argh(option, short = 'b')]
 	/// batch mode: yaml file containing a list of project and tag to extract
 	pub batch: Option<String>,
-	#[argh(positional)]
-	/// tag to extract archive from
-	pub tag: Option<String>,
 	#[argh(option, short = 's', default = "0")]
 	/// strip first n path components of every entries in archive before extraction
 	pub strip: usize,
@@ -90,6 +87,9 @@ pub struct ArchiveExtract {
 	#[argh(switch, short = 'u')]
 	/// update based on packages.lock file
 	pub update: bool,
+	#[argh(positional)]
+	/// reference (tag or branch) to extract an archive from
+	pub ref_: Option<String>,
 }
 
 #[derive(FromArgs)]
@@ -164,6 +164,9 @@ pub struct PipelineStatus {
 	#[argh(option, short = 'p')]
 	/// the project which owns the pipeline
 	pub project: Option<String>,
+	#[argh(option, short = 'r')]
+	/// reference (tag or branch)
+	pub ref_: Option<String>,
 	#[argh(positional)]
 	/// pipeline id
 	pub id: Option<u64>,
@@ -188,6 +191,9 @@ pub struct PipelineCancel {
 	#[argh(option, short = 'p')]
 	/// the project which owns the pipeline
 	pub project: Option<String>,
+	#[argh(option, short = 'r')]
+	/// reference (tag or branch)
+	pub ref_: Option<String>,
 	#[argh(positional)]
 	/// pipeline id
 	pub id: Option<u64>,
@@ -200,6 +206,9 @@ pub struct PipelineRetry {
 	#[argh(option, short = 'p')]
 	/// the project which owns the pipeline
 	pub project: Option<String>,
+	#[argh(option, short = 'r')]
+	/// reference (tag or branch)
+	pub ref_: Option<String>,
 	#[argh(positional)]
 	/// pipeline id
 	pub id: Option<u64>,
@@ -212,6 +221,9 @@ pub struct PipelineLog {
 	#[argh(option, short = 'p')]
 	/// the project which owns the pipeline
 	pub project: Option<String>,
+	#[argh(option, short = 'r')]
+	/// reference (tag or branch)
+	pub ref_: Option<String>,
 	#[argh(option, short = 's', default = "\"step_script\".to_string()")]
 	/// a name that partially match the section name(s) to show in the log: step_script (default)
 	pub section: String,

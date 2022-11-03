@@ -304,6 +304,22 @@ impl CliContext {
 				})
 	}
 
+	/// Get a reference but returns an Err if the given reference has diverged
+	pub fn check_ref(&self, ref_: Option<&String>, project: &types::Project) -> Result<String> {
+		let ref2_ = self.get_ref(ref_, project)?;
+		// check that ref didn't change
+		if let Some(r) = ref_ {
+			if r != &ref2_ {
+				bail!(
+					"Reference {} not found in Project {}",
+					r,
+					&project.path_with_namespace
+				)
+			}
+		}
+		Ok(ref2_)
+	}
+
 	/// Returns the provided pipeline id (default) or the last pipeline id for a given project and ref
 	/// from gitlab or raises an error
 	pub fn get_pipeline(

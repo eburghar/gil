@@ -81,8 +81,8 @@ pub fn cmd(context: &CliContext, args: &args::Archive) -> Result<()> {
 			} else {
 				// in command line we extract only 1 project given from command line arguments
 				let project = context.get_project(args.project.as_ref())?;
-				let tag = context.get_tag(args.tag.as_ref(), &project)?;
-				BatchConfig::singleton(project.path_with_namespace, tag.name)
+				let ref_ = context.check_ref(args.ref_.as_ref(), &project)?;
+				BatchConfig::singleton(project.path_with_namespace, ref_)
 			};
 
 			// create the dest directory

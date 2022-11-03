@@ -1195,7 +1195,7 @@ dependencies = [
 
 [[package]]
 name = "glctl"
-version = "0.5.3"
+version = "0.5.4"
 dependencies = [
  "anyhow",
  "argh",

@@ -23,7 +23,7 @@ pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
 			// get project from command line or context
 			let project = context.get_project(cmd_args.project.as_ref())?;
 			// get a reference (a tag or a branch)
-			let ref_ = context.get_ref(cmd_args.ref_.as_ref(), &project)?;
+			let ref_ = context.check_ref(cmd_args.ref_.as_ref(), &project)?;
 
 			let endpoint = pipelines::CreatePipeline::builder()
 				.project(project.path_with_namespace.to_string())
@@ -51,7 +51,7 @@ pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
 			// get project from command line or context
 			let project = context.get_project(cmd_args.project.as_ref())?;
 			// get a reference (a tag or a branch)
-			let ref_ = context.get_ref(None, &project)?;
+			let ref_ = context.check_ref(cmd_args.ref_.as_ref(), &project)?;
 			let pipeline = context.get_pipeline(cmd_args.id, &project, &ref_)?;
 
 			context.print_pipeline(&pipeline, &project, &ref_)?;
@@ -68,7 +68,7 @@ pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
 			// get project from command line or context
 			let project = context.get_project(cmd_args.project.as_ref())?;
 			// get a reference (a tag or a branch)
-			let ref_ = context.get_ref(None, &project)?;
+			let ref_ = context.check_ref(cmd_args.ref_.as_ref(), &project)?;
 			let pipeline = context.get_pipeline(cmd_args.id, &project, &ref_)?;
 
 			let endpoint = pipelines::CancelPipeline::builder()
@@ -95,7 +95,7 @@ pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
 			// get project from command line or context
 			let project = context.get_project(cmd_args.project.as_ref())?;
 			// get a reference (a tag or a branch)
-			let ref_ = context.get_ref(None, &project)?;
+			let ref_ = context.check_ref(cmd_args.ref_.as_ref(), &project)?;
 			let pipeline = context.get_pipeline(cmd_args.id, &project, &ref_)?;
 
 			let endpoint = pipelines::RetryPipeline::builder()
@@ -121,7 +121,8 @@ pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
 			// get project from command line or context
 			let project = context.get_project(cmd_args.project.as_ref())?;
 			// get a reference (a tag or a branch)
-			let ref_ = context.get_ref(None, &project)?;
+			let ref_ = context.check_ref(cmd_args.ref_.as_ref(), &project)?;
+
 			let scopes = [
 				JobScope::Running,
 				JobScope::Failed,

@@ -30,7 +30,7 @@ PR.
 ## General use
 
 ```
-glctl 0.5.3
+glctl 0.5.4
 
 Usage: glctl [-c <config>] [-v] [-o] [--color <color>] [--no-cache] <command> [<args>]
 
@@ -139,14 +139,14 @@ git archive extract -r -p group/project 0.5.0
 ## Archive command
 
 ```
-glctl 0.5.3
+glctl 0.5.4
 
-Usage: glctl archive extract [<tag>] [-p <project>] [-b <batch>] [-s <strip>] [-r] [-d <dir>] [-k] [-u]
+Usage: glctl archive extract [<ref_>] [-p <project>] [-b <batch>] [-s <strip>] [-r] [-d <dir>] [-k] [-u]
 
 Get and extract archives
 
 Positional Arguments:
-  tag               tag to extract archive from
+  ref_              reference (tag or branch) to extract an archive from
 
 Options:
   -p, --project     the project to extract archive from
@@ -181,7 +181,7 @@ reextract archives.
 ## Tags command
 
 ```
-glctl 0.5.3
+glctl 0.5.4
 
 Usage: glctl tags <command> [<args>]
 
@@ -200,7 +200,7 @@ Allow to switch on and off tags protection. Without argument it will (un)protect
 ## Pipeline command
 
 ```
-glctl 0.5.3
+glctl 0.5.4
 
 Usage: glctl pipeline <command> [<args>]
 
@@ -219,9 +219,9 @@ Commands:
 ### log sub command
 
 ```
-glctl 0.5.3
+glctl 0.5.4
 
-Usage: glctl pipeline log [<id>] [-p <project>] [-s <section>] [-a] [-h]
+Usage: glctl pipeline log [<id>] [-p <project>] [-r <ref>] [-s <section>] [-a] [-h]
 
 Get log from a job
 
@@ -230,6 +230,7 @@ Positional Arguments:
 
 Options:
   -p, --project     the project which owns the pipeline
+  -r, --ref         reference (tag or branch)
   -s, --section     a name that partially match the section name(s) to show in
                     the log: step_script (default)
   -a, --all         show all sections
@@ -263,17 +264,16 @@ Depending on the `color` mode, all colors (ANSI codes) may be striped out from t
 
 ## Configuration
 
-The configuration is searched from theses places in that order :
+The configuration is searched from theses places :
 
-- `GLCTL_CONFIG` environment variable
+1. `GLCTL_CONFIG` environment variable
 
-- `.glctl_. If no tag
-is found i will use the HEAD commit id.config.yaml` in the working directory
+2. `.glctl_config.yaml` in the working directory
 
-- `config.yaml` inside the config directory (OS dependent). For Linux it is
+3. `config.yaml` inside the config directory (OS dependent). For Linux it is
    `~/.config/glctl/config.yaml`
 
-For access token authentication, the configuration file looks like
+For access token authentication, the configuration file looks like :
 
 ```yaml
 host: git.mydomain.com
@@ -282,7 +282,7 @@ token: xxxxxxxxxx
 
 The token is a regular Gitlab access token with api privilege.
 
-For oidc authentication, it looks like
+For oidc authentication, it looks like :
 
 ```yaml
 host: git.mydomain.com
