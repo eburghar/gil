@@ -219,8 +219,8 @@ pub struct PipelineLog {
 	/// show all sections
 	pub all: bool,
 	#[argh(switch, short = 'h')]
-	/// hide section headers
-	pub no_headers: bool,
+	/// show section headers
+	pub headers: bool,
 	#[argh(positional)]
 	/// the job id to extract the job log from
 	pub id: Option<u64>,

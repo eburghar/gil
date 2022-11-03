@@ -8,6 +8,7 @@ mod fmt;
 mod git;
 mod lockfile;
 mod oidc;
+mod utils;
 
 use crate::{
 	args::{Opts, SubCommand},

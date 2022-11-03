@@ -4,6 +4,7 @@ use crate::{
 	config::{AuthType, Config, OAuth2Token},
 	fmt::{Colorizer, Stream},
 	git::GitProject,
+	utils::take_from_vec,
 };
 
 use anyhow::{anyhow, bail, Context, Result};
@@ -11,7 +12,7 @@ use gitlab::{
 	api::{
 		projects::{
 			self,
-			jobs::{self, JobScope},
+			jobs::JobScope,
 			pipelines,
 			repository::{branches, tags},
 		},
@@ -130,8 +131,8 @@ impl LogContext {
 	fn show_line(&self, args: &PipelineLog) -> bool {
 		// show line if we have no filter
 		args.all
-			// if we outside of any sections
-			|| (!args.no_headers && self.sections.is_empty())
+			// if we are outside of any sections
+			|| (args.headers && self.sections.is_empty())
 			// if we are inside a non collapsed section which id contains the given string
 			|| (self
 				.sections
@@ -357,54 +358,78 @@ impl CliContext {
 	where
 		I: Iterator<Item = JobScope>,
 	{
-		if let Some(id) = default {
-			let endpoint = jobs::Job::builder()
-				.project(project.path_with_namespace.as_str())
-				.job(id)
-				.build()?;
-			let job: types::Job = endpoint
-				.query(&self.gitlab)
-				.with_context(|| format!("Unable to get the job {}", id))?;
-			Ok(job)
-		} else {
-			let pipeline = self.get_pipeline(None, project, ref_)?;
-			let endpoint = pipelines::PipelineJobs::builder()
-				.project(project.path_with_namespace.as_str())
-				.pipeline(pipeline.id.value())
-				.include_retried(true)
-				.scopes(scopes)
-				.build()?;
-			let jobs: Vec<types::Job> = endpoint.query(&self.gitlab).with_context(|| {
-				format!(
-					"Failed to list jobs for the pipeline {} {} @ {}",
-					pipeline.id, &project.path_with_namespace, ref_
-				)
-			})?;
-			self.print_pipeline(&pipeline, project, ref_)?;
-			if jobs.len() > 1 {
-				self.print_jobs(&jobs)?;
+		let pipeline = self.get_pipeline(None, project, ref_)?;
+		let endpoint = pipelines::PipelineJobs::builder()
+			.project(project.path_with_namespace.as_str())
+			.pipeline(pipeline.id.value())
+			.include_retried(true)
+			.scopes(scopes)
+			.build()?;
+		let jobs: Vec<types::Job> = endpoint.query(&self.gitlab).with_context(|| {
+			format!(
+				"Failed to list jobs for the pipeline {} {} @ {}",
+				pipeline.id, &project.path_with_namespace, ref_
+			)
+		})?;
 
-				let job = match pipeline.status {
-					// return the first job in the same state than the pipeline
-					StatusState::Failed | StatusState::Running | StatusState::Success => jobs
-						.into_iter()
-						.find(|job| job.status == pipeline.status)
-						.unwrap(),
-					// otherwise return first pipeline job
-					_ => jobs.into_iter().last().unwrap(),
-				};
-
-				Ok(job)
-			} else {
-				jobs.into_iter().last().ok_or_else(|| {
+		// try to get the index of a suitable job
+		let i = if let Some(job_id) = default {
+			// from the given id
+			jobs.iter()
+				.enumerate()
+				// if it belongs to the pipeline
+				.find(|(_, job)| job.id.value() == job_id)
+				.ok_or_else(|| {
 					anyhow!(
-						"Unable to determine the latest job id for {} @ {}",
-						&project.path_with_namespace,
+						"The Job {} does not belong to Pipeline {} ({} @ {})",
+						job_id,
+						pipeline.id.value(),
+						&project.name_with_namespace,
 						ref_
 					)
 				})
-			}
-		}
+				// and if it is in suitable state
+				.and_then(|(i, job)| {
+					has_log(job).then_some(i).ok_or_else(|| {
+						anyhow!(
+							"The Job {} from Pipeline {} ({} @ {}) has no log",
+							job_id,
+							pipeline.id.value(),
+							&project.name_with_namespace,
+							ref_
+						)
+					})
+				})?
+		} else {
+			// or from the pipeline jobs list
+			has_log(&pipeline)
+				// if we find a job in the same state than the pipeline
+				.then(|| {
+					jobs.iter()
+						.enumerate()
+						.find_map(|(i, job)| (job.status == pipeline.status).then_some(i))
+				})
+				.flatten()
+				// or if we find a job in a suitable state
+				.or_else(|| {
+					jobs.iter()
+						.rev()
+						.enumerate()
+						.find_map(|(i, job)| has_log(job).then_some(i))
+				})
+				// otherwise fails
+				.ok_or_else(|| {
+					anyhow!(
+						"Unable to determine the latest Job id for {} @ {}",
+						&project.path_with_namespace,
+						ref_
+					)
+				})?
+		};
+
+		self.print_pipeline(&pipeline, project, ref_)?;
+		self.print_jobs(&jobs)?;
+		Ok(take_from_vec(jobs, i).unwrap())
 	}
 
 	/// Get a list of Job(s) for a given project's pipeline id
@@ -485,7 +510,7 @@ impl CliContext {
 								state.sections.push(section.clone());
 								// reevaluate show_line when changing section
 								show_line = state.show_line(args);
-								if !args.no_headers {
+								if args.all || args.headers {
 									self.print_section(s, section, show_line)?;
 								}
 								state.state = LogState::Text;
@@ -606,4 +631,33 @@ impl CliContext {
 		msg.none("\n");
 		self.print_msg(msg)
 	}
+}
+
+/// Trait for gitlab types having a statusstate field
+trait HasStatusState {
+	fn get_status(&self) -> StatusState;
+}
+
+impl HasStatusState for &types::PipelineBasic {
+	fn get_status(&self) -> StatusState {
+		self.status
+	}
+}
+
+impl HasStatusState for &types::Job {
+	fn get_status(&self) -> StatusState {
+		self.status
+	}
+}
+
+#[inline]
+fn has_log<T>(job: T) -> bool
+where
+	T: HasStatusState,
+{
+	let status = job.get_status();
+	status == StatusState::Canceled
+		|| status == StatusState::Failed
+		|| status == StatusState::Running
+		|| status == StatusState::Success
 }

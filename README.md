@@ -30,7 +30,7 @@ PR.
 ## General use
 
 ```
-glctl 0.5.2
+glctl 0.5.3
 
 Usage: glctl [-c <config>] [-v] [-o] [--color <color>] [--no-cache] <command> [<args>]
 
@@ -107,7 +107,7 @@ gil pipeline log
 ```
 
 Based on the latest pipeline status (on 0.3.0) it will display the lasted failed, successful or
-running job. 
+running job.
 
 You can open the project page on a new tab in your browser :
 
@@ -139,7 +139,7 @@ git archive extract -r -p group/project 0.5.0
 ## Archive command
 
 ```
-glctl 0.5.2
+glctl 0.5.3
 
 Usage: glctl archive extract [<tag>] [-p <project>] [-b <batch>] [-s <strip>] [-r] [-d <dir>] [-k] [-u]
 
@@ -181,7 +181,7 @@ reextract archives.
 ## Tags command
 
 ```
-glctl 0.5.2
+glctl 0.5.3
 
 Usage: glctl tags <command> [<args>]
 
@@ -200,7 +200,7 @@ Allow to switch on and off tags protection. Without argument it will (un)protect
 ## Pipeline command
 
 ```
-glctl 0.5.2
+glctl 0.5.3
 
 Usage: glctl pipeline <command> [<args>]
 
@@ -208,7 +208,6 @@ Manage project pipeline
 
 Options:
   --help            display usage information
-
 Commands:
   status            Get pipeline status
   create            Create a new pipeline
@@ -220,7 +219,7 @@ Commands:
 ### log sub command
 
 ```
-glctl 0.5.2
+glctl 0.5.3
 
 Usage: glctl pipeline log [<id>] [-p <project>] [-s <section>] [-a] [-h]
 
@@ -231,45 +230,45 @@ Positional Arguments:
 
 Options:
   -p, --project     the project which owns the pipeline
-  -s, --section     a name that partially match the section names to show in the
-                    log: step_script (default)
+  -s, --section     a name that partially match the section name(s) to show in
+                    the log: step_script (default)
   -a, --all         show all sections
-  -h, --no-headers  hide section headers
+  -h, --headers     show section headers
   --help            display usage information
 ```
 
-By default it shows only the `script` part of the job (a section named `step_script`), and hides the
-collapsed sections. Hidden sections are indicated in separated (colored) lines between `>` and `<`.
-The section ids are indicated between brackets. if `-h` is used then no section headers are printed.
+By default it shows only the section named `step_script` (which corresponds to the script section in
+`.gitlab-ci.yml`). With `-h` sections headers appears as separated (colored) lines starting with `>`
+an ending with `<` if they are collapsed. The section ids are indicated between brackets.
 
-To show all sections :
-
-```bash
-glctl pipeline log -a
-```
-
-To show only the `prepare_` sections :
+To show all sections (uncollapsed) with headers :
 
 ```bash
-glctl pipeline log -s prepare_
+glctl pipeline log -h -a
 ```
 
-To show only the `step_script` and remove all the noise (section headers) :
+To show only the `step_script` section with all other sections collapsed :
 
 ```bash
 glctl pipeline log -h
+```
+
+To show only the sections which names contain `prepare` :
+
+```bash
+glctl pipeline log -h -s prepare
 ```
 
 Depending on the `color` mode, all colors (ANSI codes) may be striped out from the log.
 
 ## Configuration
 
-The configuration is looked from theses places in that order :
+The configuration is searched from theses places in that order :
 
 - `GLCTL_CONFIG` environment variable
 
 - `.glctl_. If no tag
-is found it will use the HEAD commit id.config.yaml` in the working directory
+is found i will use the HEAD commit id.config.yaml` in the working directory
 
 - `config.yaml` inside the config directory (OS dependent). For Linux it is
    `~/.config/glctl/config.yaml`
