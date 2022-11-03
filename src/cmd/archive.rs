@@ -3,7 +3,6 @@ use crate::{
 	args::{self, ArchiveCmd},
 	context::CliContext,
 	lockfile::LockFile,
-	utils::get_or_create_dir,
 };
 
 use anyhow::{Context, Result};
@@ -18,6 +17,25 @@ use std::{
 	ops::Deref,
 	path::PathBuf,
 };
+
+fn get_or_create_dir(dir: &str, keep: bool, update: bool, verbose: bool) -> Result<PathBuf> {
+	let path = PathBuf::from(dir);
+	// remove destination dir if requested
+	if !keep && !update && path.exists() {
+		remove_dir_all(&path).with_context(|| format!("Can't remove dir {}", dir))?;
+		if verbose {
+			println!("{} removed", &dir)
+		}
+	}
+	// create destination dir if necessary
+	if !path.exists() {
+		create_dir_all(&path).with_context(|| format!("Can't create dir {}", dir))?;
+		if verbose {
+			println!("Creating dir {}", &dir);
+		}
+	}
+	Ok(path)
+}
 
 #[derive(Deserialize)]
 /// Configuration for batch mode (extract sub command)
@@ -99,7 +117,8 @@ pub fn cmd(context: &CliContext, args: &args::Archive) -> Result<()> {
 					continue;
 				}
 
-				let tag = context.get_tag_commit(project, tag)?;
+				let prj = context.get_project(Some(project))?;
+				let tag = context.get_tag(Some(tag), &prj)?;
 				// get locked_commit or tag commit
 				let mut found = false;
 				let mut commit = match lock.get(project) {

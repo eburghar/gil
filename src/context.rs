@@ -1,8 +1,9 @@
 use crate::{
-	args::{ColorChoice, Opts},
+	args::{ColorChoice, Opts, PipelineLog},
+	color::{Style, StyledStr},
 	config::{AuthType, Config, OAuth2Token},
+	fmt::{Colorizer, Stream},
 	git::GitProject,
-	utils::{print_jobs, print_pipeline},
 };
 
 use anyhow::{anyhow, bail, Context, Result};
@@ -12,12 +13,136 @@ use gitlab::{
 			self,
 			jobs::{self, JobScope},
 			pipelines,
-			repository::{branches, commits, tags},
+			repository::{branches, tags},
 		},
 		Query,
 	},
 	types, Gitlab, StatusState,
 };
+use std::str::FromStr;
+
+fn status_style(status: StatusState) -> Option<Style> {
+	Some(match status {
+		StatusState::Success | StatusState::Running => Style::Good,
+		StatusState::Canceled | StatusState::Failed => Style::Error,
+		StatusState::WaitingForResource | StatusState::Skipped | StatusState::Pending => {
+			Style::Warning
+		}
+		StatusState::Created
+		| StatusState::Manual
+		| StatusState::Preparing
+		| StatusState::Scheduled => Style::Literal,
+	})
+}
+
+#[derive(Debug, PartialEq, Clone)]
+/// Marker for section start and end
+enum SectionType {
+	Start,
+	End,
+}
+
+impl FromStr for SectionType {
+	type Err = SectionError;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		if s == "section_start" {
+			Ok(SectionType::Start)
+		} else if s == "section_end" {
+			Ok(SectionType::End)
+		} else {
+			Err(SectionError)
+		}
+	}
+}
+
+#[derive(Clone, Debug)]
+pub struct SectionError;
+
+#[derive(Debug, Clone)]
+/// Parsing result of a log section
+struct Section {
+	type_: SectionType,
+	// timestamp: String,
+	name: String,
+	collapsed: bool,
+}
+
+impl FromStr for Section {
+	type Err = SectionError;
+
+	/// dumb parser for <https://docs.gitlab.com/ee/ci/jobs/#expand-and-collapse-job-log-sections>
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		if s.starts_with("section_start:") || s.starts_with("section_end:") {
+			// section_type:id:name[flags]
+			let info: [&str; 3] = s
+				// remove leading \r
+				.trim()
+				.splitn(3, ':')
+				.collect::<Vec<&str>>()
+				.try_into()
+				.unwrap();
+			// string to enum
+			let type_ = SectionType::from_str(info[0])?;
+			let name = info[2];
+			// try to separate name and flags
+			let name_flags = name
+				.find('[')
+				.and_then(|i| name.find(']').map(|j| (&name[..i], &name[i + 1..j])));
+			Ok(Self {
+				type_,
+				// timestamp: info[1].to_owned(),
+				name: name_flags
+					.map(|(n, _)| n.to_owned())
+					.unwrap_or_else(|| name.to_owned()),
+				collapsed: name_flags
+					.map(|(_, flags)| flags == "collapsed=true")
+					.unwrap_or(false),
+			})
+		} else {
+			Err(SectionError)
+		}
+	}
+}
+/// Type of current line in the log printer
+enum LogState {
+	Text,
+	Section(Section),
+}
+
+/// Structure to drive the section headers parser
+struct LogContext {
+	pub state: LogState,
+	pub sections: Vec<Section>,
+}
+
+impl Default for LogContext {
+	fn default() -> Self {
+		Self {
+			state: LogState::Text,
+			sections: Vec::default(),
+		}
+	}
+}
+
+impl LogContext {
+	/// Decide if we show the current line int the log printer
+	fn show_line(&self, args: &PipelineLog) -> bool {
+		// show line if we have no filter
+		args.all
+			// if we outside of any sections
+			|| (!args.no_headers && self.sections.is_empty())
+			// if we are inside a non collapsed section which id contains the given string
+			|| (self
+				.sections
+				.iter()
+				.all(|section| !section.collapsed)
+				&& self
+				.sections
+				.iter()
+				.any(|section| section.name.contains(&args.section)))
+	}
+}
 
 /// Structure to pass around functions containing informations
 /// about execution context
@@ -84,8 +209,7 @@ impl CliContext {
 		})
 	}
 
-	/// Returns the provided project name (default) or the one extracted from the repo url
-	/// or raises an error
+	/// Get a project (which can be the one provided or a default one)
 	pub fn get_project<'a>(&'a self, default: Option<&'a String>) -> Result<types::Project> {
 		let id = default.or_else(|| self.repo.as_ref().and_then(|repo| repo.name.as_ref()));
 		if let Some(id) = id {
@@ -99,37 +223,7 @@ impl CliContext {
 		}
 	}
 
-	#[allow(dead_code)]
-	/// Returns the provided commit id (default) or the one extracted from the repo
-	/// or raises an error
-	pub fn get_commit(
-		&self,
-		default: Option<&String>,
-		project: &types::Project,
-	) -> Result<types::Commit> {
-		let commit = default.or_else(|| self.repo.as_ref().and_then(|repo| repo.commit.as_ref()));
-		if let Some(commit) = commit {
-			commits::Commit::builder()
-				.project(project.path_with_namespace.as_str())
-				.commit(commit)
-				.build()?
-				.query(&self.gitlab)
-				.with_context(|| {
-					format!(
-						"Can't find a commit {} for project {}",
-						commit, &project.path_with_namespace
-					)
-				})
-		} else {
-			bail!(
-				"Can't find a commit for project {}",
-				&project.name_with_namespace
-			)
-		}
-	}
-
-	/// Returns the provided tag name (default) or the one extracted from the repo
-	/// or raises an error
+	/// Get a tag (which can be the one provided or a default one) for the given project
 	pub fn get_tag(
 		&self,
 		default: Option<&String>,
@@ -156,8 +250,7 @@ impl CliContext {
 		}
 	}
 
-	/// Returns the provided branch name (default) or the one extracted from the repo
-	/// or raises an error
+	/// Get a branch (which can be the one provided or a default one) for the given project
 	pub fn get_branch(
 		&self,
 		default: Option<&String>,
@@ -183,8 +276,8 @@ impl CliContext {
 			)
 		}
 	}
+
 	/// Returns the provided tag name (default) or the one extracted from the repo
-	/// or raises an error
 	pub fn get_tagexp<'a>(&'a self, default: Option<&'a String>) -> Result<&'a String> {
 		default
 			.or_else(|| self.repo.as_ref().and_then(|repo| repo.tag.as_ref()))
@@ -193,6 +286,8 @@ impl CliContext {
 			})
 	}
 
+	/// Get a reference (which can be the one provided or a default one) for the given project
+	/// checking that it is tag or a branch name
 	pub fn get_ref(&self, ref_: Option<&String>, project: &types::Project) -> Result<String> {
 		// get a reference (a tag or a branch)
 		self.get_tag(ref_, project)
@@ -285,9 +380,9 @@ impl CliContext {
 					pipeline.id, &project.path_with_namespace, ref_
 				)
 			})?;
-			print_pipeline(&pipeline, project, ref_, self.color)?;
+			self.print_pipeline(&pipeline, project, ref_)?;
 			if jobs.len() > 1 {
-				print_jobs(&jobs, self.color)?;
+				self.print_jobs(&jobs)?;
 
 				let job = match pipeline.status {
 					// return the first job in the same state than the pipeline
@@ -312,6 +407,7 @@ impl CliContext {
 		}
 	}
 
+	/// Get a list of Job(s) for a given project's pipeline id
 	pub fn get_jobs(&self, project: &types::Project, pipeline: u64) -> Result<Vec<types::Job>> {
 		let endpoint = pipelines::PipelineJobs::builder()
 			.project(project.path_with_namespace.as_str())
@@ -327,18 +423,187 @@ impl CliContext {
 		Ok(jobs)
 	}
 
-	pub fn get_tag_commit(&self, project: &String, tag: &str) -> Result<types::Tag> {
-		// get commit sha associated with tag
-		let endpoint = tags::Tag::builder()
-			.project(project.as_str())
-			.tag_name(tag)
-			.build()?;
-		let res: types::Tag = endpoint.query(&self.gitlab).with_context(|| {
-			format!(
-				"Failed to get commit info for tag {} on project {}",
-				tag, project
-			)
-		})?;
-		Ok(res)
+	/// Print a StyledStr with Colorize
+	pub fn print_msg(&self, msg: StyledStr) -> Result<()> {
+		Colorizer::new(Stream::Stdout, self.color)
+			.with_content(msg)
+			.print()
+			.with_context(|| "Failed to print")
+	}
+
+	/// Print section headers
+	fn print_section(&self, title: &str, section: &Section, show_line: bool) -> Result<()> {
+		let mut msg = StyledStr::new();
+
+		msg.warning(format!("\n> {} [", title));
+		msg.literal(&section.name);
+		msg.warning("]");
+		if !show_line {
+			msg.warning(" <");
+			if section.collapsed
+				&& (self.color == ColorChoice::Always
+					|| self.color == ColorChoice::Auto && atty::is(atty::Stream::Stdout))
+			{
+				msg.none("\n");
+			}
+		}
+		msg.none("\n");
+
+		self.print_msg(msg)
+	}
+
+	/// Print the log comming from Gitlab line by line filtering sections if necessary
+	fn print_log_lines(&self, log: &[u8], args: &PipelineLog) -> Result<()> {
+		use std::io::{BufRead, BufReader};
+
+		let colored = self.color == ColorChoice::Always
+			|| self.color == ColorChoice::Auto && atty::is(atty::Stream::Stdout);
+
+		let mut reader = BufReader::new(log).lines();
+		let mut state = LogContext::default();
+		while let Some(Ok(line)) = reader.next() {
+			// evaluate show_line for each line
+			let mut show_line = state.show_line(args);
+			for (_effect, s) in yew_ansi::get_sgr_segments(&line) {
+				match state.state {
+					LogState::Text => {
+						if let Ok(section) = Section::from_str(s) {
+							state.state = LogState::Section(section);
+						} else {
+							// when not in color mode we need to print the segment without style
+							if show_line && !colored {
+								let mut msg = StyledStr::new();
+								msg.none(s);
+								self.print_msg(msg)?;
+							}
+						}
+					}
+					LogState::Section(ref section) => {
+						match section.type_ {
+							// start of new section
+							SectionType::Start => {
+								state.sections.push(section.clone());
+								// reevaluate show_line when changing section
+								show_line = state.show_line(args);
+								if !args.no_headers {
+									self.print_section(s, section, show_line)?;
+								}
+								state.state = LogState::Text;
+								// line has already been printed so force to skip in colored mode
+								if colored {
+									if show_line {
+										self.print_msg("\n".into())?;
+									}
+									show_line = false;
+								}
+							}
+							// end of a section
+							SectionType::End => {
+								state.sections.pop();
+								// reevaluate show_line when changing section
+								show_line = state.show_line(args);
+								// stay in section state if current line is a start or end
+								state.state = Section::from_str(s)
+									.ok()
+									.map(LogState::Section)
+									.unwrap_or(LogState::Text);
+								// line has already been printed so force to skip in colored mode
+								if colored {
+									show_line = false;
+								}
+							}
+						}
+					}
+				}
+			}
+			if show_line {
+				let mut msg = StyledStr::new();
+				if colored {
+					msg.none(line);
+				}
+				msg.none("\n");
+				self.print_msg(msg)?;
+			}
+		}
+
+		Ok(())
+	}
+
+	/// Print job's log header
+	pub fn print_log(&self, log: &[u8], job: &types::Job, args: &PipelineLog) -> Result<()> {
+		let mut msg = StyledStr::new();
+		msg.none("Log for job ");
+		msg.literal(job.id.to_string());
+		msg.none(": ");
+		msg.stylize(status_style(job.status), format!("{:?}", job.status));
+		if self.open {
+			msg.hint(format!(" ({})", job.web_url));
+		}
+		msg.none("\n\n");
+		Colorizer::new(Stream::Stdout, self.color)
+			.with_content(msg)
+			.print()?;
+
+		self.print_log_lines(log, args)
+	}
+
+	/// Print pipeline header
+	pub fn print_pipeline(
+		&self,
+		pipeline: &types::PipelineBasic,
+		project: &types::Project,
+		ref_: &String,
+	) -> Result<()> {
+		let mut msg = StyledStr::new();
+		msg.none("Pipeline ");
+		msg.literal(pipeline.id.value().to_string());
+		msg.none(format!(
+			" ({} @ {}): ",
+			project.name_with_namespace.as_str(),
+			&ref_
+		));
+		msg.stylize(
+			status_style(pipeline.status),
+			format!("{:?}", pipeline.status),
+		);
+		if self.open {
+			msg.hint(format!(" ({})", pipeline.web_url));
+		}
+		msg.none("\n");
+		self.print_msg(msg)
+	}
+
+	/// Print the provided jobs list in reverse order (run order)
+	pub fn print_jobs(&self, jobs: &[types::Job]) -> Result<()> {
+		let mut msg = StyledStr::new();
+		if !jobs.is_empty() {
+			for job in jobs.iter().rev() {
+				msg.none("- Job ");
+				msg.literal(job.id.to_string());
+				msg.none(format!(" {} ", job.name));
+				msg.hint(format!("[{}]", job.stage));
+				msg.none(": ");
+				msg.stylize(status_style(job.status), format!("{:?}", job.status));
+				msg.none("\n");
+			}
+			msg.none("\n");
+		}
+		self.print_msg(msg)
+	}
+
+	pub fn print_project(&self, project: &types::Project, ref_: &String) -> Result<()> {
+		let mut msg = StyledStr::new();
+		msg.none("Project ");
+		msg.literal(&project.id.to_string());
+		msg.none(" ( ");
+		msg.literal(&project.name_with_namespace);
+		msg.none(" @ ");
+		msg.literal(ref_);
+		msg.none(" ) ");
+		if self.open {
+			msg.hint(format!("({})", &project.web_url));
+		}
+		msg.none("\n");
+		self.print_msg(msg)
 	}
 }

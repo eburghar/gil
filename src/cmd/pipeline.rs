@@ -1,7 +1,6 @@
 use crate::{
 	args::{self, PipelineCmd},
 	context::CliContext,
-	utils::{print_jobs, print_log, print_pipeline},
 };
 
 use anyhow::{Context, Result};
@@ -38,9 +37,9 @@ pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
 					)
 				})?;
 
-			print_pipeline(&pipeline, &project, &ref_, context.color)?;
+			context.print_pipeline(&pipeline, &project, &ref_)?;
 			let jobs = context.get_jobs(&project, pipeline.id.value())?;
-			print_jobs(&jobs, context.color)?;
+			context.print_jobs(&jobs)?;
 
 			if context.open {
 				let _ = open::that(pipeline.web_url);
@@ -55,9 +54,9 @@ pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
 			let ref_ = context.get_ref(None, &project)?;
 			let pipeline = context.get_pipeline(cmd_args.id, &project, &ref_)?;
 
-			print_pipeline(&pipeline, &project, &ref_, context.color)?;
+			context.print_pipeline(&pipeline, &project, &ref_)?;
 			let jobs = context.get_jobs(&project, pipeline.id.value())?;
-			print_jobs(&jobs, context.color)?;
+			context.print_jobs(&jobs)?;
 
 			if context.open {
 				let _ = open::that(pipeline.web_url);
@@ -81,10 +80,10 @@ pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
 					format!("Failed to cancel pipeline {}", &pipeline.id.to_string())
 				})?;
 
-			print_pipeline(&pipeline, &project, &ref_, context.color)?;
+			context.print_pipeline(&pipeline, &project, &ref_)?;
 			// list jobs after cancel
 			let jobs = context.get_jobs(&project, pipeline.id.value())?;
-			print_jobs(&jobs, context.color)?;
+			context.print_jobs(&jobs)?;
 
 			if context.open {
 				let _ = open::that(pipeline.web_url);
@@ -107,10 +106,10 @@ pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
 				.query(&context.gitlab)
 				.with_context(|| format!("Failed to retry pipeline {}", pipeline.id))?;
 
-			print_pipeline(&pipeline, &project, &ref_, context.color)?;
+			context.print_pipeline(&pipeline, &project, &ref_)?;
 			// list jobs after retry
 			let jobs = context.get_jobs(&project, pipeline.id.value())?;
-			print_jobs(&jobs, context.color)?;
+			context.print_jobs(&jobs)?;
 
 			if context.open {
 				let _ = open::that(pipeline.web_url);
@@ -136,7 +135,7 @@ pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
 				.build()?;
 
 			let log = api::raw(endpoint).query(&context.gitlab)?;
-			print_log(&log, &job, cmd_args, context.color)?;
+			context.print_log(&log, &job, cmd_args)?;
 			if context.open {
 				let _ = open::that(job.web_url);
 			}

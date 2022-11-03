@@ -1,5 +1,7 @@
 # glctl
 
+[TOC]
+
 `glctl` aims to ease interactions between a local git repository and its Gitlab counterpart, and
 to achieve that goal:
 
@@ -28,7 +30,7 @@ PR.
 ## General use
 
 ```
-glctl 0.5.1
+glctl 0.5.2
 
 Usage: glctl [-c <config>] [-v] [-o] [--color <color>] [--no-cache] <command> [<args>]
 
@@ -131,13 +133,13 @@ gil pipeline create
 Sometimes you want to quickly extract a project archive :
 
 ```bash
-git archive extract -p group/project 0.5.0 -r
+git archive extract -r -p group/project 0.5.0
 ```
 
 ## Archive command
 
 ```
-glctl 0.5.1
+glctl 0.5.2
 
 Usage: glctl archive extract [<tag>] [-p <project>] [-b <batch>] [-s <strip>] [-r] [-d <dir>] [-k] [-u]
 
@@ -179,7 +181,7 @@ reextract archives.
 ## Tags command
 
 ```
-glctl 0.5.1
+glctl 0.5.2
 
 Usage: glctl tags <command> [<args>]
 
@@ -198,7 +200,7 @@ Allow to switch on and off tags protection. Without argument it will (un)protect
 ## Pipeline command
 
 ```
-glctl 0.5.1
+glctl 0.5.2
 
 Usage: glctl pipeline <command> [<args>]
 
@@ -218,9 +220,9 @@ Commands:
 ### log sub command
 
 ```
-glctl 0.5.1
+glctl 0.5.2
 
-Usage: glctl pipeline log [<id>] [-p <project>] [-s <step>] [-a]
+Usage: glctl pipeline log [<id>] [-p <project>] [-s <section>] [-a] [-h]
 
 Get log from a job
 
@@ -229,19 +231,33 @@ Positional Arguments:
 
 Options:
   -p, --project     the project which owns the pipeline
-  -s, --step        the section to show in the log: step_script (default)
+  -s, --section     a name that partially match the section names to show in the
+                    log: step_script (default)
   -a, --all         show all sections
+  -h, --no-headers  hide section headers
   --help            display usage information
 ```
 
 By default it shows only the `script` part of the job (a section named `step_script`), and hides the
 collapsed sections. Hidden sections are indicated in separated (colored) lines between `>` and `<`.
-The section ids are indicated between brackets.
+The section ids are indicated between brackets. if `-h` is used then no section headers are printed.
 
-To show all sections, do
+To show all sections :
 
 ```bash
 glctl pipeline log -a
+```
+
+To show only the `prepare_` sections :
+
+```bash
+glctl pipeline log -s prepare_
+```
+
+To show only the `step_script` and remove all the noise (section headers) :
+
+```bash
+glctl pipeline log -h
 ```
 
 Depending on the `color` mode, all colors (ANSI codes) may be striped out from the log.

@@ -213,11 +213,14 @@ pub struct PipelineLog {
 	/// the project which owns the pipeline
 	pub project: Option<String>,
 	#[argh(option, short = 's', default = "\"step_script\".to_string()")]
-	/// the section to show in the log: step_script (default)
-	pub step: String,
+	/// a name that partially match the section name(s) to show in the log: step_script (default)
+	pub section: String,
 	#[argh(switch, short = 'a')]
 	/// show all sections
 	pub all: bool,
+	#[argh(switch, short = 'h')]
+	/// hide section headers
+	pub no_headers: bool,
 	#[argh(positional)]
 	/// the job id to extract the job log from
 	pub id: Option<u64>,
