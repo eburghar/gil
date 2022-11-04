@@ -42,6 +42,9 @@ pub struct Opts {
 	#[argh(switch, short = 'o')]
 	/// try to open links whenever possible
 	pub open: bool,
+	#[argh(switch, short = 'u')]
+	/// show urls
+	pub url: bool,
 	#[cfg(feature = "color")]
 	#[argh(option, default = "ColorChoice::Auto")]
 	/// color mode: auto (default), always or never

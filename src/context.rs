@@ -4,10 +4,11 @@ use crate::{
 	config::{AuthType, Config, OAuth2Token},
 	fmt::{Colorizer, Stream},
 	git::GitProject,
-	utils::take_from_vec,
+	utils::{format_duration, take_from_vec},
 };
 
 use anyhow::{anyhow, bail, Context, Result};
+use chrono::Utc;
 use gitlab::{
 	api::{
 		projects::{
@@ -44,7 +45,7 @@ enum SectionType {
 }
 
 impl FromStr for SectionType {
-	type Err = SectionError;
+	type Err = anyhow::Error;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		if s == "section_start" {
@@ -52,25 +53,22 @@ impl FromStr for SectionType {
 		} else if s == "section_end" {
 			Ok(SectionType::End)
 		} else {
-			Err(SectionError)
+			Err(anyhow!("Section delimiter not found"))
 		}
 	}
 }
-
-#[derive(Clone, Debug)]
-pub struct SectionError;
 
 #[derive(Debug, Clone)]
 /// Parsing result of a log section
 struct Section {
 	type_: SectionType,
-	// timestamp: String,
+	timestamp: i64,
 	name: String,
 	collapsed: bool,
 }
 
 impl FromStr for Section {
-	type Err = SectionError;
+	type Err = anyhow::Error;
 
 	/// dumb parser for <https://docs.gitlab.com/ee/ci/jobs/#expand-and-collapse-job-log-sections>
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -92,7 +90,7 @@ impl FromStr for Section {
 				.and_then(|i| name.find(']').map(|j| (&name[..i], &name[i + 1..j])));
 			Ok(Self {
 				type_,
-				// timestamp: info[1].to_owned(),
+				timestamp: info[1].parse()?,
 				name: name_flags
 					.map(|(n, _)| n.to_owned())
 					.unwrap_or_else(|| name.to_owned()),
@@ -101,7 +99,7 @@ impl FromStr for Section {
 					.unwrap_or(false),
 			})
 		} else {
-			Err(SectionError)
+			bail!("Section delimiter not found")
 		}
 	}
 }
@@ -152,6 +150,8 @@ pub struct CliContext {
 	pub verbose: bool,
 	/// open links automatically
 	pub open: bool,
+	/// show urls
+	pub url: bool,
 	/// color mode
 	pub color: ColorChoice,
 	/// the gitlab connexion
@@ -203,6 +203,7 @@ impl CliContext {
 		Ok(Self {
 			verbose: opts.verbose,
 			open: opts.open,
+			url: opts.url,
 			color,
 			gitlab,
 			config,
@@ -479,21 +480,25 @@ impl CliContext {
 		msg.warning(format!("\n> {} [", title));
 		msg.literal(&section.name);
 		msg.warning("]");
-		if !show_line {
-			msg.warning(" <");
-			if section.collapsed
-				&& (self.color == ColorChoice::Always
-					|| self.color == ColorChoice::Auto && atty::is(atty::Stream::Stdout))
-			{
-				msg.none("\n");
-			}
+		msg.none(" ");
+		// if !show_line {
+		// 	msg.warning(" <");
+		// 	if section.collapsed
+		// 		&& (self.color == ColorChoice::Always
+		// 			|| self.color == ColorChoice::Auto && atty::is(atty::Stream::Stdout))
+		// 	{
+		// 		msg.none("\n");
+		// 	}
+		// }
+		// msg.none("\n");
+		if show_line {
+			msg.none("\n");
 		}
-		msg.none("\n");
 
 		self.print_msg(msg)
 	}
 
-	/// Print the log comming from Gitlab line by line filtering sections if necessary
+	/// Print the log coming from Gitlab line by line filtering sections if necessary
 	fn print_log_lines(&self, log: &[u8], args: &PipelineLog) -> Result<()> {
 		use std::io::{BufRead, BufReader};
 
@@ -540,7 +545,17 @@ impl CliContext {
 							}
 							// end of a section
 							SectionType::End => {
-								state.sections.pop();
+								let prev_section = state.sections.pop();
+								if args.all || args.headers {
+									if let Some(prev_section) = prev_section {
+										let f = format_duration(
+											section.timestamp - prev_section.timestamp,
+										);
+										let mut msg = StyledStr::new();
+										msg.warning(format!("< [{}]\n", f));
+										self.print_msg(msg)?;
+									}
+								}
 								// reevaluate show_line when changing section
 								show_line = state.show_line(args);
 								// stay in section state if current line is a start or end
@@ -575,9 +590,9 @@ impl CliContext {
 		let mut msg = StyledStr::new();
 		msg.none("Log for job ");
 		msg.literal(job.id.to_string());
-		msg.none(": ");
+		msg.none(" - ");
 		msg.stylize(status_style(job.status), format!("{:?}", job.status));
-		if self.open {
+		if self.url {
 			msg.hint(format!(" ({})", job.web_url));
 		}
 		msg.none("\n\n");
@@ -599,15 +614,21 @@ impl CliContext {
 		msg.none("Pipeline ");
 		msg.literal(pipeline.id.value().to_string());
 		msg.none(format!(
-			" ({} @ {}): ",
+			" ({} @ {})",
 			project.name_with_namespace.as_str(),
 			&ref_
 		));
+		if let Some(created_at) = pipeline.created_at {
+			msg.none(" [");
+			msg.literal(timeago::Formatter::new().convert_chrono(created_at, Utc::now()));
+			msg.none("]");
+		}
+		msg.none(" - ");
 		msg.stylize(
 			status_style(pipeline.status),
 			format!("{:?}", pipeline.status),
 		);
-		if self.open {
+		if self.url {
 			msg.hint(format!(" ({})", pipeline.web_url));
 		}
 		msg.none("\n");
@@ -622,9 +643,23 @@ impl CliContext {
 				msg.none("- Job ");
 				msg.literal(job.id.to_string());
 				msg.none(format!(" {} ", job.name));
-				msg.hint(format!("[{}]", job.stage));
-				msg.none(": ");
+				msg.hint(format!("({})", job.stage));
+				job.finished_at
+					.or_else(|| Some(Utc::now()))
+					.and_then(|end| {
+						job.started_at
+							.map(|start| format_duration((end - start).num_seconds()))
+					})
+					.map(|duration| {
+						msg.none(" [");
+						msg.literal(duration);
+						msg.none("]");
+					});
+				msg.none(" - ");
 				msg.stylize(status_style(job.status), format!("{:?}", job.status));
+				if self.url {
+					msg.hint(format!(" ({}))", job.web_url));
+				}
 				msg.none("\n");
 			}
 			msg.none("\n");
@@ -632,6 +667,7 @@ impl CliContext {
 		self.print_msg(msg)
 	}
 
+	// Print project header
 	pub fn print_project(&self, project: &types::Project, ref_: &String) -> Result<()> {
 		let mut msg = StyledStr::new();
 		msg.none("Project ");
@@ -641,7 +677,7 @@ impl CliContext {
 		msg.none(" @ ");
 		msg.literal(ref_);
 		msg.none(" ) ");
-		if self.open {
+		if self.url {
 			msg.hint(format!("({})", &project.web_url));
 		}
 		msg.none("\n");
