@@ -17,9 +17,9 @@ pub struct Config {
 	pub name: String,
 }
 
+/// Authentication type supported
 #[derive(Deserialize)]
 #[serde(untagged)]
-/// Authentication type supported
 pub enum AuthType {
 	/// access token
 	Token(String),

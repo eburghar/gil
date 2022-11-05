@@ -3,9 +3,9 @@ use argh::FromArgValue;
 use argh::{FromArgs, TopLevelCommand};
 use std::{env, path::Path};
 
+/// Color mode
 #[allow(dead_code)]
 #[derive(Copy, Clone, Debug, PartialEq)]
-/// Color mode
 pub enum ColorChoice {
 	Auto,
 	Always,
@@ -30,28 +30,34 @@ impl FromArgValue for ColorChoice {
 	}
 }
 
-#[derive(FromArgs)]
 /// Interact with Gitlab API
+#[derive(FromArgs)]
 pub struct Opts {
-	#[argh(option, short = 'c')]
 	/// configuration file containing gitlab connection parameters
+	#[argh(option, short = 'c')]
 	pub config: Option<String>,
-	#[argh(switch, short = 'v')]
+
 	/// more detailed output
+	#[argh(switch, short = 'v')]
 	pub verbose: bool,
-	#[argh(switch, short = 'o')]
+
 	/// try to open links whenever possible
+	#[argh(switch, short = 'o')]
 	pub open: bool,
-	#[argh(switch, short = 'u')]
+
 	/// show urls
+	#[argh(switch, short = 'u')]
 	pub url: bool,
+
 	#[cfg(feature = "color")]
-	#[argh(option, default = "ColorChoice::Auto")]
 	/// color mode: auto (default), always or never
+	#[argh(option, default = "ColorChoice::Auto")]
 	pub color: ColorChoice,
-	#[argh(switch)]
+
 	/// don't save oidc login to cache
+	#[argh(switch)]
 	pub no_cache: bool,
+
 	#[argh(subcommand)]
 	pub cmd: SubCommand,
 }
@@ -65,33 +71,40 @@ pub enum SubCommand {
 	Project(Project),
 }
 
-#[derive(FromArgs)]
 /// Get and extract archives
+#[derive(FromArgs)]
 #[argh(subcommand, name = "extract")]
 pub struct ArchiveExtract {
-	#[argh(option, short = 'p')]
 	/// the project to extract archive from
+	#[argh(option, short = 'p')]
 	pub project: Option<String>,
-	#[argh(option, short = 'b')]
+
 	/// batch mode: yaml file containing a list of project and tag to extract
+	#[argh(option, short = 'b')]
 	pub batch: Option<String>,
-	#[argh(option, short = 's', default = "0")]
+
 	/// strip first n path components of every entries in archive before extraction
+	#[argh(option, short = 's', default = "0")]
 	pub strip: usize,
-	#[argh(switch, short = 'r')]
+
 	/// rename first directory of the archive to the name of the project
+	#[argh(switch, short = 'r')]
 	pub rename: bool,
-	#[argh(option, short = 'd', default = "\"tmp\".to_string()")]
+
 	/// destination directory
+	#[argh(option, short = 'd', default = "\"tmp\".to_string()")]
 	pub dir: String,
-	#[argh(switch, short = 'k')]
+
 	/// skip extraction of projects if a directory with same name already exists. by default destination directory is removed before extraction
+	#[argh(switch, short = 'k')]
 	pub keep: bool,
-	#[argh(switch, short = 'u')]
+
 	/// update based on packages.lock file
+	#[argh(switch, short = 'u')]
 	pub update: bool,
-	#[argh(positional)]
+
 	/// reference (tag or branch) to extract an archive from
+	#[argh(positional)]
 	pub ref_: Option<String>,
 }
 
@@ -101,12 +114,12 @@ pub enum ArchiveCmd {
 	Extract(ArchiveExtract),
 }
 
-#[derive(FromArgs)]
 /// Handle project archives
+#[derive(FromArgs)]
 #[argh(subcommand, name = "archive")]
 pub struct Archive {
-	#[argh(subcommand)]
 	/// operate on archive
+	#[argh(subcommand)]
 	pub cmd: ArchiveCmd,
 }
 
@@ -117,36 +130,38 @@ pub enum TagsCmd {
 	Unprotect(TagsUnprotect),
 }
 
-#[derive(FromArgs)]
 /// Protect a project tag(s)
+#[derive(FromArgs)]
 #[argh(subcommand, name = "protect")]
 pub struct TagsProtect {
-	#[argh(option, short = 'p')]
 	/// the project to protect tags from
+	#[argh(option, short = 'p')]
 	pub project: Option<String>,
-	#[argh(positional, default = "\"*\".to_string()")]
+
 	/// tag expression: '*' (default)
+	#[argh(positional, default = "\"*\".to_string()")]
 	pub tag: String,
 }
 
-#[derive(FromArgs)]
 /// Unprotect a project tag(s)
+#[derive(FromArgs)]
 #[argh(subcommand, name = "unprotect")]
 pub struct TagsUnprotect {
-	#[argh(option, short = 'p')]
 	/// the project to protect tags from
+	#[argh(option, short = 'p')]
 	pub project: Option<String>,
-	#[argh(positional, default = "\"*\".to_string()")]
+
 	/// tag expression: '*' (default)
+	#[argh(positional, default = "\"*\".to_string()")]
 	pub tag: String,
 }
 
-#[derive(FromArgs)]
 /// Manage project tags
+#[derive(FromArgs)]
 #[argh(subcommand, name = "tags")]
 pub struct Tags {
-	#[argh(subcommand)]
 	/// operate on tags
+	#[argh(subcommand)]
 	pub cmd: TagsCmd,
 }
 
@@ -160,89 +175,105 @@ pub enum PipelineCmd {
 	Log(PipelineLog),
 }
 
-#[derive(FromArgs)]
 /// Get pipeline status
+#[derive(FromArgs)]
 #[argh(subcommand, name = "status")]
 pub struct PipelineStatus {
-	#[argh(option, short = 'p')]
 	/// the project which owns the pipeline
+	#[argh(option, short = 'p')]
 	pub project: Option<String>,
-	#[argh(option, short = 'r')]
+
 	/// reference (tag or branch)
+	#[argh(option, short = 'r')]
 	pub ref_: Option<String>,
-	#[argh(positional)]
+
 	/// pipeline id
+	#[argh(positional)]
 	pub id: Option<u64>,
 }
 
-#[derive(FromArgs)]
 /// Create a new pipeline
+#[derive(FromArgs)]
 #[argh(subcommand, name = "create")]
 pub struct PipelineCreate {
-	#[argh(option, short = 'p')]
 	/// the project which owns the pipeline
+	#[argh(option, short = 'p')]
 	pub project: Option<String>,
-	#[argh(positional)]
+
 	/// reference (tag or branch)
+	#[argh(positional)]
 	pub ref_: Option<String>,
 }
 
-#[derive(FromArgs)]
 /// Cancel a pipeline
+#[derive(FromArgs)]
 #[argh(subcommand, name = "cancel")]
 pub struct PipelineCancel {
-	#[argh(option, short = 'p')]
 	/// the project which owns the pipeline
+	#[argh(option, short = 'p')]
 	pub project: Option<String>,
-	#[argh(option, short = 'r')]
+
 	/// reference (tag or branch)
+	#[argh(option, short = 'r')]
 	pub ref_: Option<String>,
-	#[argh(positional)]
+
 	/// pipeline id
+	#[argh(positional)]
 	pub id: Option<u64>,
 }
 
-#[derive(FromArgs)]
 /// Retry a pipeline
+#[derive(FromArgs)]
 #[argh(subcommand, name = "retry")]
 pub struct PipelineRetry {
-	#[argh(option, short = 'p')]
 	/// the project which owns the pipeline
+	#[argh(option, short = 'p')]
 	pub project: Option<String>,
-	#[argh(option, short = 'r')]
+
 	/// reference (tag or branch)
+	#[argh(option, short = 'r')]
 	pub ref_: Option<String>,
-	#[argh(positional)]
+
 	/// pipeline id
+	#[argh(positional)]
 	pub id: Option<u64>,
 }
 
-#[derive(FromArgs)]
 /// Get log from a job
+#[derive(FromArgs)]
 #[argh(subcommand, name = "log")]
 pub struct PipelineLog {
-	#[argh(option, short = 'p')]
 	/// the project which owns the pipeline
+	#[argh(option, short = 'p')]
 	pub project: Option<String>,
-	#[argh(option, short = 'r')]
+
 	/// reference (tag or branch)
+	#[argh(option, short = 'r')]
 	pub ref_: Option<String>,
-	#[argh(option, short = 's', default = "\"step_script\".to_string()")]
+
 	/// a name that partially match the section name(s) to show in the log: step_script (default)
+	#[argh(option, short = 's', default = "\"step_script\".to_string()")]
 	pub section: String,
-	#[argh(switch, short = 'a')]
+
 	/// show all sections
+	#[argh(switch, short = 'a')]
 	pub all: bool,
-	#[argh(switch, short = 'h')]
+
 	/// show section headers
+	#[argh(switch, short = 'h')]
 	pub headers: bool,
-	#[argh(positional)]
+
+	/// show only section headers (all collapsed)
+	#[argh(switch, short = 'H')]
+	pub only_headers: bool,
+
 	/// the job id to extract the job log from
+	#[argh(positional)]
 	pub id: Option<u64>,
 }
 
-#[derive(FromArgs)]
 /// Manage project pipeline
+#[derive(FromArgs)]
 #[argh(subcommand, name = "pipeline")]
 pub struct Pipeline {
 	#[argh(subcommand)]
@@ -268,14 +299,15 @@ pub fn from_env<T: TopLevelCommand>() -> T {
 	})
 }
 
+/// Display information about project
 #[derive(FromArgs)]
 #[argh(subcommand, name = "project")]
-/// Display information about project
 pub struct Project {
-	#[argh(option, short = 'p')]
 	/// the project to protect tags from
+	#[argh(option, short = 'p')]
 	pub project: Option<String>,
-	#[argh(positional)]
+
 	/// reference (tag or branch)
+	#[argh(positional)]
 	pub ref_: Option<String>,
 }

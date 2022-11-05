@@ -37,8 +37,8 @@ fn status_style(status: StatusState) -> Option<Style> {
 	})
 }
 
-#[derive(Debug, PartialEq, Clone)]
 /// Marker for section start and end
+#[derive(Debug, PartialEq, Clone)]
 enum SectionType {
 	Start,
 	End,
@@ -58,8 +58,8 @@ impl FromStr for SectionType {
 	}
 }
 
-#[derive(Debug, Clone)]
 /// Parsing result of a log section
+#[derive(Debug, Clone)]
 struct Section {
 	type_: SectionType,
 	timestamp: i64,
@@ -129,13 +129,14 @@ impl LogContext {
 	fn show_line(&self, args: &PipelineLog) -> bool {
 		// show line if we have no filter
 		args.all
-			// if we are outside of any sections
-			|| (args.headers && self.sections.is_empty())
+			// if we are outside of any sections (the first log lines)
+			|| ((args.only_headers || args.headers) && self.sections.is_empty())
 			// if we are inside a non collapsed section which id contains the given string
-			|| (self
+			|| (!args.only_headers
+				&& self
 				.sections
 				.iter()
-				.all(|section| !section.collapsed)
+				.all(|section| !section.collapsed || section.name.contains(&args.section))
 				&& self
 				.sections
 				.iter()
@@ -481,16 +482,6 @@ impl CliContext {
 		msg.literal(&section.name);
 		msg.warning("]");
 		msg.none(" ");
-		// if !show_line {
-		// 	msg.warning(" <");
-		// 	if section.collapsed
-		// 		&& (self.color == ColorChoice::Always
-		// 			|| self.color == ColorChoice::Auto && atty::is(atty::Stream::Stdout))
-		// 	{
-		// 		msg.none("\n");
-		// 	}
-		// }
-		// msg.none("\n");
 		if show_line {
 			msg.none("\n");
 		}
@@ -531,7 +522,7 @@ impl CliContext {
 								state.sections.push(section.clone());
 								// reevaluate show_line when changing section
 								show_line = state.show_line(args);
-								if args.all || args.headers {
+								if args.all || args.headers || args.only_headers {
 									self.print_section(s, section, show_line)?;
 								}
 								state.state = LogState::Text;
@@ -546,7 +537,7 @@ impl CliContext {
 							// end of a section
 							SectionType::End => {
 								let prev_section = state.sections.pop();
-								if args.all || args.headers {
+								if args.all || args.headers || args.only_headers {
 									if let Some(prev_section) = prev_section {
 										let f = format_duration(
 											section.timestamp - prev_section.timestamp,
@@ -614,9 +605,10 @@ impl CliContext {
 		msg.none("Pipeline ");
 		msg.literal(pipeline.id.value().to_string());
 		msg.none(format!(
-			" ({} @ {})",
+			" ({} @ {} = {})",
 			project.name_with_namespace.as_str(),
-			&ref_
+			&ref_,
+			&pipeline.sha.value()[..8]
 		));
 		if let Some(created_at) = pipeline.created_at {
 			msg.none(" [");

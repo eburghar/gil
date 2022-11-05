@@ -1,3 +1,4 @@
+/// Borowed from clap output/fmt.rs
 use crate::args::ColorChoice;
 use crate::color::StyledStr;
 

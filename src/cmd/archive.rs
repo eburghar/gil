@@ -37,8 +37,8 @@ fn get_or_create_dir(dir: &str, keep: bool, update: bool, verbose: bool) -> Resu
 	Ok(path)
 }
 
-#[derive(Deserialize)]
 /// Configuration for batch mode (extract sub command)
+#[derive(Deserialize)]
 pub struct BatchConfig(BTreeMap<String, String>);
 
 impl BatchConfig {

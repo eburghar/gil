@@ -32,7 +32,7 @@ is in place, so feel free to fork or send PR.
 ## General use
 
 ```
-glctl 0.5.5
+glctl 0.5.6
 
 Usage: glctl [-c <config>] [-v] [-o] [-u] [--color <color>] [--no-cache] <command> [<args>]
 
@@ -103,7 +103,7 @@ You can check immediately that the triggered pipeline is correctly running with 
 gil pipeline status
 ```
 ```
- Pipeline 4089 (alpine / dendrite @ 0.10.7) [4 seconds ago] - Pending
+ Pipeline 4089 (alpine / dendrite @ 0.10.7 = d1d77b7c) [4 seconds ago] - Pending
 - Job 8151 build_apk (build) - Pending
 - Job 8152 package_apk (deploy) - Created
 - Job 8153 deploy_apk (deploy) - Created
@@ -116,7 +116,7 @@ If you want to check log :
 gil pipeline log
 ```
 ```
- Pipeline 4089 (alpine / dendrite @ 0.10.7) [1 minute ago] - Running
+ Pipeline 4089 (alpine / dendrite @ 0.10.7 = d1d77b7c) [1 minute ago] - Running
 - Job 8151 build_apk (build) [1:43s] - Running
 
 Log for job 8151 - Running
@@ -133,6 +133,37 @@ OK: 17631 distinct packages available
 
 Based on the latest pipeline status it will display the lasted failed, successful or
 running job to show you only what matters.
+
+Check the log with all headers collapsed :
+
+```bash
+gil pipeline log -H
+```
+
+```
+Pipeline 4089 (alpine / dendrite @ 0.10.7 = d1d77b7c) [18 hours ago] - Success
+- Job 8151 build_apk (build) [5:18s] - Success
+- Job 8152 package_apk (deploy) [17s] - Success
+- Job 8153 deploy_apk (deploy) [17s] - Success
+- Job 8154 downstream_container (.post) [15s] - Success
+
+Log for job 8154 - Success
+
+Running with gitlab-runner 15.4.0 (43b2dc3d)
+  on gitlab-runner-795d5987d8-c7785 8sD4PLPV
+
+> Preparing the "kubernetes" executor [prepare_executor] < [0s]
+
+> Preparing environment [prepare_script] < [10s]
+
+> Getting source from Git repository [get_sources] < [1s]
+
+> Downloading artifacts [download_artifacts] < [1s]
+
+> Executing "step_script" stage of the job script [step_script] < [1s]
+
+> Cleaning up project directory and file based variables [cleanup_file_variables] < [1s]
+```
 
 You can open the project page on a new tab in your browser :
 
@@ -164,7 +195,7 @@ gil archive extract -r -p group/project 0.5.0
 ## Archive command
 
 ```
-glctl 0.5.5
+glctl 0.5.6
 
 Usage: glctl archive extract [<ref_>] [-p <project>] [-b <batch>] [-s <strip>] [-r] [-d <dir>] [-k] [-u]
 
@@ -206,7 +237,7 @@ re-extract archives.
 ## Tags command
 
 ```
-glctl 0.5.5
+glctl 0.5.6
 
 Usage: glctl tags <command> [<args>]
 
@@ -225,7 +256,7 @@ Allow switching on and off tags protection. Without argument, it will (un)protec
 ## Pipeline command
 
 ```
-glctl 0.5.5
+glctl 0.5.6
 
 Usage: glctl pipeline <command> [<args>]
 
@@ -244,9 +275,9 @@ Commands:
 ### log sub command
 
 ```
-glctl 0.5.5
+glctl 0.5.6
 
-Usage: glctl pipeline log [<id>] [-p <project>] [-r <ref>] [-s <section>] [-a] [-h]
+Usage: glctl pipeline log [<id>] [-p <project>] [-r <ref>] [-s <section>] [-a] [-h] [-H]
 
 Get log from a job
 
@@ -260,6 +291,8 @@ Options:
                     the log: step_script (default)
   -a, --all         show all sections
   -h, --headers     show section headers
+  -H, --only-headers
+                    show only section headers (all collapsed)
   --help            display usage information
 ```
 
