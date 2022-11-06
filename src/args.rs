@@ -66,6 +66,7 @@ pub struct Opts {
 #[argh(subcommand)]
 pub enum SubCommand {
 	Tags(Tags),
+	Branches(Branches),
 	Build(Pipeline),
 	Archive(Archive),
 	Project(Project),
@@ -134,7 +135,7 @@ pub enum TagsCmd {
 #[derive(FromArgs)]
 #[argh(subcommand, name = "protect")]
 pub struct TagsProtect {
-	/// the project to protect tags from
+	/// the project to protect tags on
 	#[argh(option, short = 'p')]
 	pub project: Option<String>,
 
@@ -147,7 +148,7 @@ pub struct TagsProtect {
 #[derive(FromArgs)]
 #[argh(subcommand, name = "unprotect")]
 pub struct TagsUnprotect {
-	/// the project to protect tags from
+	/// the project to protect tags on
 	#[argh(option, short = 'p')]
 	pub project: Option<String>,
 
@@ -165,14 +166,78 @@ pub struct Tags {
 	pub cmd: TagsCmd,
 }
 
+/// Protect a project branche(s)
+#[derive(FromArgs)]
+#[argh(subcommand, name = "protect")]
+pub struct BranchesProtect {
+	/// the project to protect branches on
+	#[argh(option, short = 'p')]
+	pub project: Option<String>,
+
+	/// allow force push
+	#[argh(switch, short = 'f')]
+	pub force_push: bool,
+
+	/// branch expression
+	#[argh(positional)]
+	pub branch: Option<String>,
+}
+
+/// Unprotect a project brnache(s)
+#[derive(FromArgs)]
+#[argh(subcommand, name = "unprotect")]
+pub struct BranchesUnprotect {
+	/// the project to protect tags from
+	#[argh(option, short = 'p')]
+	pub project: Option<String>,
+
+	/// branch expression
+	#[argh(positional)]
+	pub branch: Option<String>,
+}
+
+/// Manage project branches
+#[derive(FromArgs)]
+#[argh(subcommand, name = "branches")]
+pub struct Branches {
+	/// operate on branches
+	#[argh(subcommand)]
+	pub cmd: BranchesCmd,
+}
+
+#[derive(FromArgs)]
+#[argh(subcommand)]
+pub enum BranchesCmd {
+	Protect(BranchesProtect),
+	Unprotect(BranchesUnprotect),
+}
+
 #[derive(FromArgs)]
 #[argh(subcommand)]
 pub enum PipelineCmd {
+	List(PipelineList),
 	Status(PipelineStatus),
 	Create(PipelineCreate),
 	Cancel(PipelineCancel),
 	Retry(PipelineRetry),
 	Log(PipelineLog),
+}
+
+/// list pipelines
+#[derive(FromArgs)]
+#[argh(subcommand, name = "list")]
+pub struct PipelineList {
+	/// the project which owns the pipeline
+	#[argh(option, short = 'p')]
+	pub project: Option<String>,
+
+	/// limit
+	#[argh(option, short = 'l', default = "10")]
+	pub limit: usize,
+
+	/// pipeline id
+	#[argh(positional)]
+	pub id: Option<u64>,
 }
 
 /// Get pipeline status

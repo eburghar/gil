@@ -131,7 +131,7 @@ impl LogContext {
 		args.all
 			// if we are outside of any sections (the first log lines)
 			|| ((args.only_headers || args.headers) && self.sections.is_empty())
-			// if we are inside a non collapsed section which id contains the given string
+			// if we are inside a non collapsed section or a collapsed one which id contains the given string
 			|| (!args.only_headers
 				&& self
 				.sections
@@ -286,6 +286,15 @@ impl CliContext {
 			.or_else(|| self.repo.as_ref().and_then(|repo| repo.tag.as_ref()))
 			.ok_or_else(|| {
 				anyhow!("Can't find a project tag. Specify one manually on the command line")
+			})
+	}
+
+	/// Returns the provided branch name (default) or the one extracted from the repo
+	pub fn get_branchexp<'a>(&'a self, default: Option<&'a String>) -> Result<&'a String> {
+		default
+			.or_else(|| self.repo.as_ref().and_then(|repo| repo.branch.as_ref()))
+			.ok_or_else(|| {
+				anyhow!("Can't find a project branch. Specify one manually on the command line")
 			})
 	}
 
@@ -445,7 +454,7 @@ impl CliContext {
 				})?
 		};
 
-		self.print_pipeline(&pipeline, project, ref_)?;
+		self.print_pipeline(&pipeline, project)?;
 		self.print_jobs(&jobs)?;
 		Ok(take_from_vec(jobs, i).unwrap())
 	}
@@ -595,19 +604,18 @@ impl CliContext {
 	}
 
 	/// Print pipeline header
-	pub fn print_pipeline(
+	pub fn msg_pipeline(
 		&self,
+		msg: &mut StyledStr,
 		pipeline: &types::PipelineBasic,
 		project: &types::Project,
-		ref_: &String,
-	) -> Result<()> {
-		let mut msg = StyledStr::new();
+	) {
 		msg.none("Pipeline ");
-		msg.literal(pipeline.id.value().to_string());
+		msg.literal(pipeline.id.to_string());
 		msg.none(format!(
 			" ({} @ {} = {})",
 			project.name_with_namespace.as_str(),
-			&ref_,
+			&pipeline.ref_.as_ref().unwrap_or(&"??".to_owned()),
 			&pipeline.sha.value()[..8]
 		));
 		if let Some(created_at) = pipeline.created_at {
@@ -624,6 +632,38 @@ impl CliContext {
 			msg.hint(format!(" ({})", pipeline.web_url));
 		}
 		msg.none("\n");
+	}
+
+	pub fn print_pipeline(
+		&self,
+		pipeline: &types::PipelineBasic,
+		project: &types::Project,
+	) -> Result<()> {
+		let mut msg = StyledStr::new();
+		self.msg_pipeline(&mut msg, pipeline, project);
+		self.print_msg(msg)
+	}
+
+	/// Print pipelines list
+	pub fn print_pipelines(
+		&self,
+		pipelines: &[types::PipelineBasic],
+		project: &types::Project,
+	) -> Result<()> {
+		let mut msg = StyledStr::new();
+		if pipelines.is_empty() {
+			msg.none("No pipelines found for ");
+			msg.literal(project.name_with_namespace.as_str());
+		} else {
+			msg.none("Pipelines for ");
+			msg.literal(project.name_with_namespace.as_str());
+			msg.none("\n");
+			for pipeline in pipelines.iter() {
+				msg.none("- ");
+				self.msg_pipeline(&mut msg, pipeline, &project);
+			}
+		}
+		// msg.none("\n");
 		self.print_msg(msg)
 	}
 

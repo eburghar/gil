@@ -13,8 +13,8 @@ mod utils;
 use crate::{
 	args::{Opts, SubCommand},
 	cmd::{
-		archive::cmd as archive, pipeline::cmd as pipeline, project::cmd as project,
-		tags::cmd as tags,
+		archive::cmd as archive, branches::cmd as branches, pipeline::cmd as pipeline,
+		project::cmd as project, tags::cmd as tags,
 	},
 	context::CliContext,
 };
@@ -32,5 +32,6 @@ fn main() -> Result<()> {
 		SubCommand::Build(args) => pipeline(&context, args),
 		SubCommand::Archive(args) => archive(&context, args),
 		SubCommand::Project(args) => project(&context, args),
+		SubCommand::Branches(args) => branches(&context, args),
 	}
 }

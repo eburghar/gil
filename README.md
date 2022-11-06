@@ -14,7 +14,7 @@ to achieve that goal:
   
 - shows the least amount of information and maximizing its usefulness
 
-It offers for the moment only 4 commands that are part of my regular workflows and spared me a lot
+It offers for the moment only 5 commands that are part of my regular workflows and spared me a lot
 of time from the web interface. It is easy to add new commands though as the application skeleton
 is in place, so feel free to fork or send PR.
 
@@ -25,6 +25,8 @@ is in place, so feel free to fork or send PR.
 
   - `tags`: allows (un)protecting tags
 
+  - `branches`: allows (un)protecting branches
+
   - `pipeline`: triggers a pipeline creation, see status, get log, cancel and retry
   
   - `project`: display information about GitLab project (mainly to open the page in the browser)
@@ -32,11 +34,11 @@ is in place, so feel free to fork or send PR.
 ## General use
 
 ```
-glctl 0.5.6
+glctl 0.5.7
 
 Usage: glctl [-c <config>] [-v] [-o] [-u] [--color <color>] [--no-cache] <command> [<args>]
 
-Interact with GitLab API
+Interact with Gitlab API
 
 Options:
   -c, --config      configuration file containing gitlab connection parameters
@@ -49,6 +51,7 @@ Options:
 
 Commands:
   tags              Manage project tags
+  branches          Manage project branches
   pipeline          Manage project pipeline
   archive           Handle project archives
   project           Display information about project
@@ -165,6 +168,26 @@ Running with gitlab-runner 15.4.0 (43b2dc3d)
 > Cleaning up project directory and file based variables [cleanup_file_variables] < [1s]
 ```
 
+At least if you want to list the last 10 pipeline of the project
+
+```bash
+gil pipeline list
+```
+
+```
+ Pipelines for alpine / dendrite
+- Pipeline 4089 (alpine / dendrite @ 0.10.7 = d1d77b7c) [1 day ago] - Success
+- Pipeline 4054 (alpine / dendrite @ 0.10.6 = 651195dd) [4 days ago] - Success
+- Pipeline 3955 (alpine / dendrite @ 0.10.4 = 7f558e55) [2 weeks ago] - Success
+- Pipeline 3921 (alpine / dendrite @ 0.10.3 = 0c7ac91c) [2 weeks ago] - Success
+- Pipeline 3901 (alpine / dendrite @ 0.10.3 = a791cd67) [3 weeks ago] - Success
+- Pipeline 3899 (alpine / dendrite @ 0.10.3 = cce3be6b) [3 weeks ago] - Success
+- Pipeline 3881 (alpine / dendrite @ 0.10.2 = a5ac8e8e) [3 weeks ago] - Success
+- Pipeline 3874 (alpine / dendrite @ 0.10.2 = 49120d34) [3 weeks ago] - Success
+- Pipeline 3843 (alpine / dendrite @ 0.10.1 = acad0de7) [1 month ago] - Failed
+- Pipeline 3842 (alpine / dendrite @ 0.10.1 = 5fb73da0) [1 month ago] - Canceled 
+```
+
 You can open the project page on a new tab in your browser :
 
 ```bash
@@ -195,7 +218,7 @@ gil archive extract -r -p group/project 0.5.0
 ## Archive command
 
 ```
-glctl 0.5.6
+glctl 0.5.7
 
 Usage: glctl archive extract [<ref_>] [-p <project>] [-b <batch>] [-s <strip>] [-r] [-d <dir>] [-k] [-u]
 
@@ -237,7 +260,7 @@ re-extract archives.
 ## Tags command
 
 ```
-glctl 0.5.6
+glctl 0.5.7
 
 Usage: glctl tags <command> [<args>]
 
@@ -256,7 +279,7 @@ Allow switching on and off tags protection. Without argument, it will (un)protec
 ## Pipeline command
 
 ```
-glctl 0.5.6
+glctl 0.5.7
 
 Usage: glctl pipeline <command> [<args>]
 
@@ -275,7 +298,7 @@ Commands:
 ### log sub command
 
 ```
-glctl 0.5.6
+glctl 0.5.7
 
 Usage: glctl pipeline log [<id>] [-p <project>] [-r <ref>] [-s <section>] [-a] [-h] [-H]
 
