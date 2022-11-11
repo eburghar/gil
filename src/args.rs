@@ -320,6 +320,10 @@ pub struct PipelineLog {
 	#[argh(option, short = 's', default = "\"step_script\".to_string()")]
 	pub section: String,
 
+	/// the job id to extract the job log from
+	#[argh(option, short = 'j')]
+	pub job_id: Option<u64>,
+
 	/// show all sections
 	#[argh(switch, short = 'a')]
 	pub all: bool,
@@ -332,7 +336,7 @@ pub struct PipelineLog {
 	#[argh(switch, short = 'H')]
 	pub only_headers: bool,
 
-	/// the job id to extract the job log from
+	/// the pipeline id
 	#[argh(positional)]
 	pub id: Option<u64>,
 }

@@ -378,6 +378,7 @@ impl CliContext {
 	pub fn get_job<I>(
 		&self,
 		default: Option<u64>,
+		pipeline_id: Option<u64>,
 		project: &types::Project,
 		ref_: &String,
 		scopes: I,
@@ -385,7 +386,7 @@ impl CliContext {
 	where
 		I: Iterator<Item = JobScope>,
 	{
-		let pipeline = self.get_pipeline(None, project, ref_)?;
+		let pipeline = self.get_pipeline(pipeline_id, project, ref_)?;
 		let endpoint = pipelines::PipelineJobs::builder()
 			.project(project.path_with_namespace.as_str())
 			.pipeline(pipeline.id.value())

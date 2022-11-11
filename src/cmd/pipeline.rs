@@ -153,7 +153,13 @@ pub fn cmd(context: &CliContext, args: &args::Pipeline) -> Result<()> {
 				JobScope::Success,
 				JobScope::Canceled,
 			];
-			let job = context.get_job(cmd_args.id, &project, &ref_, scopes.into_iter())?;
+			let job = context.get_job(
+				cmd_args.job_id,
+				cmd_args.id,
+				&project,
+				&ref_,
+				scopes.into_iter(),
+			)?;
 			let endpoint = jobs::JobTrace::builder()
 				.project(project.path_with_namespace)
 				.job(job.id.value())

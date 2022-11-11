@@ -34,7 +34,7 @@ is in place, so feel free to fork or send PR.
 ## General use
 
 ```
-glctl 0.5.7
+glctl 0.5.8
 
 Usage: glctl [-c <config>] [-v] [-o] [-u] [--color <color>] [--no-cache] <command> [<args>]
 
@@ -218,7 +218,7 @@ gil archive extract -r -p group/project 0.5.0
 ## Archive command
 
 ```
-glctl 0.5.7
+glctl 0.5.8
 
 Usage: glctl archive extract [<ref_>] [-p <project>] [-b <batch>] [-s <strip>] [-r] [-d <dir>] [-k] [-u]
 
@@ -260,7 +260,7 @@ re-extract archives.
 ## Tags command
 
 ```
-glctl 0.5.7
+glctl 0.5.8
 
 Usage: glctl tags <command> [<args>]
 
@@ -279,7 +279,7 @@ Allow switching on and off tags protection. Without argument, it will (un)protec
 ## Pipeline command
 
 ```
-glctl 0.5.7
+glctl 0.5.8
 
 Usage: glctl pipeline <command> [<args>]
 
@@ -298,9 +298,9 @@ Commands:
 ### log sub command
 
 ```
-glctl 0.5.7
+glctl 0.5.8
 
-Usage: glctl pipeline log [<id>] [-p <project>] [-r <ref>] [-s <section>] [-a] [-h] [-H]
+Usage: glctl pipeline log [<id>] [-p <project>] [-r <ref>] [-s <section>] [-i <pipeline-id>] [-a] [-h] [-H]
 
 Get log from a job
 
@@ -312,6 +312,7 @@ Options:
   -r, --ref         reference (tag or branch)
   -s, --section     a name that partially match the section name(s) to show in
                     the log: step_script (default)
+  -i, --pipeline-id the pipeline id
   -a, --all         show all sections
   -h, --headers     show section headers
   -H, --only-headers
