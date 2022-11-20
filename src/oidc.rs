@@ -110,16 +110,32 @@ pub fn login(host: &String, config: &OAuth2, opts: &Opts) -> Result<OAuth2Token>
 	let page = formatdoc! {"
         <!DOCTYPE HTML>
         <html>
-		<head>
-		<title>{name}</title>
-		</head>
-        <body>
-		  <h2>{name} {version} connexion successful</h2>
-		  <p>You can close this window.</p>
-          <script>
-			window.close();
-          </script>
-        </body>
+			<head>
+				<title>{name}</title>
+				<style>
+					body {{
+						background-color: #eee;
+						margin: 0;
+						padding: 0;
+						font-family: sans-serif;
+					}}
+					.placeholder {{
+						margin: 2em;
+						padding: 2em;
+						background-color: #fff;
+						border-radius: 1em;
+					}}
+				</style>
+			</head>
+			<body>
+				<div class=\"placeholder\">
+					<h1>Authenticated</h1>
+					<p>{name} {version} authenticated successfully. You can close this window.</p>
+					<script>
+						window.close();
+					</script>
+				</div>
+			</body>
         </html>"
 	,
 	version = env!("CARGO_PKG_VERSION"),

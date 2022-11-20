@@ -180,13 +180,14 @@ impl CliContext {
 					// check if we can login with that
 					if let Ok(gitlab) = Gitlab::with_oauth2(&config.host, token) {
 						Ok(gitlab)
-					// otherwise try relogin
+					// otherwise try renew the token
 					} else {
 						let token = OAuth2Token::from_login(&config.host, oauth2, opts)?;
 						Gitlab::with_oauth2(&config.host, token)
 					}
-				// otherwise try to login
+				// otherwise try to login following the oauth2 flow
 				} else {
+					println!("Proceed to the login page https://{}", &config.host);
 					let token = crate::oidc::login(&config.host, oauth2, opts)?;
 					Gitlab::with_oauth2(&config.host, token)
 				}
