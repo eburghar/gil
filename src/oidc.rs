@@ -5,16 +5,17 @@ use crate::{
 
 use anyhow::{anyhow, bail, Context, Result};
 use indoc::formatdoc;
+use openidconnect::reqwest::Error;
 use openidconnect::url::Url;
 use openidconnect::{
 	core::{CoreClient, CoreIdTokenVerifier, CoreProviderMetadata, CoreResponseType},
-	reqwest::http_client,
 	AdditionalClaims, AuthenticationFlow, AuthorizationCode, ClientId, ClientSecret, CsrfToken,
-	IssuerUrl, Nonce, OAuth2TokenResponse, RedirectUrl, Scope,
+	HttpRequest, HttpResponse, IssuerUrl, Nonce, OAuth2TokenResponse, RedirectUrl, Scope,
 };
+use reqwest::blocking;
 use serde::{Deserialize, Serialize};
 use std::{
-	io::{BufRead, BufReader, Write},
+	io::{BufRead, BufReader, Read, Write},
 	net::TcpListener,
 };
 
@@ -25,6 +26,36 @@ struct GitLabClaims {
 	groups: Vec<String>,
 }
 impl AdditionalClaims for GitLabClaims {}
+
+pub fn http_client(request: HttpRequest) -> Result<HttpResponse, Error<reqwest::Error>> {
+	let client = blocking::Client::builder()
+		// Following redirects opens the client up to SSRF vulnerabilities.
+		.redirect(reqwest::redirect::Policy::none())
+		.build()
+		.map_err(Error::Reqwest)?;
+
+	let mut request_builder = client
+		.request(request.method, request.url.as_str())
+		.body(request.body);
+
+	for (name, value) in &request.headers {
+		request_builder = request_builder.header(name.as_str(), value.as_bytes());
+	}
+	let mut response = client
+		.execute(request_builder.build().map_err(Error::Reqwest)?)
+		.map_err(Error::Reqwest)?;
+
+	let mut body = Vec::new();
+	response.read_to_end(&mut body).map_err(Error::Io)?;
+
+	{
+		Ok(HttpResponse {
+			status_code: response.status(),
+			headers: response.headers().to_owned(),
+			body,
+		})
+	}
+}
 
 // Try to login to gitlab using oidc
 // save the token to cache file and return the login information in case of success
