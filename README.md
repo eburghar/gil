@@ -358,7 +358,9 @@ The configuration is searched from these places :
 For access token authentication, the configuration file looks like :
 
 ```yaml
-host: git.mydomain.com
+host:
+  name: git.mydomain.com
+  ca: ca.crt
 token: xxxxxxxxxx
 ```
 
@@ -367,7 +369,9 @@ The token is a regular GitLab access token with API privilege.
 For OIDC authentication, it looks like :
 
 ```yaml
-host: git.mydomain.com
+host:
+  name: git.mydomain.com
+  ca: ca.crt
 token:
   id: yyyyyy
   secret: zzzzzz

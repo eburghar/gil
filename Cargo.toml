@@ -1,6 +1,6 @@
 [package]
 name = "glctl"
-version = "0.5.9"
+version = "0.6.0"
 description = "Command line tool to interact with Gitlab AP from a git repository"
 authors = ["Éric BURGHARD <eric@itsufficient.me>"]
 edition = "2021"

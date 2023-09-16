@@ -1,6 +1,6 @@
 use crate::{
-	args::Opts,
-	config::{OAuth2, OAuth2Token},
+    args::Opts,
+    config::{Host, OAuth2, OAuth2Token},
 };
 
 use anyhow::{anyhow, bail, Context, Result};
@@ -8,139 +8,168 @@ use indoc::formatdoc;
 use openidconnect::reqwest::Error;
 use openidconnect::url::Url;
 use openidconnect::{
-	core::{CoreClient, CoreIdTokenVerifier, CoreProviderMetadata, CoreResponseType},
-	AdditionalClaims, AuthenticationFlow, AuthorizationCode, ClientId, ClientSecret, CsrfToken,
-	HttpRequest, HttpResponse, IssuerUrl, Nonce, OAuth2TokenResponse, RedirectUrl, Scope,
+    core::{CoreClient, CoreIdTokenVerifier, CoreProviderMetadata, CoreResponseType},
+    AdditionalClaims, AuthenticationFlow, AuthorizationCode, ClientId, ClientSecret, CsrfToken,
+    HttpRequest, HttpResponse, IssuerUrl, Nonce, OAuth2TokenResponse, RedirectUrl, Scope,
 };
-use reqwest::blocking;
+use reqwest::{blocking, Certificate};
 use serde::{Deserialize, Serialize};
 use std::{
-	io::{BufRead, BufReader, Read, Write},
-	net::TcpListener,
+    fs::File,
+    io::{BufRead, BufReader, Read, Write},
+    net::TcpListener,
 };
 
 #[derive(Debug, Deserialize, Serialize)]
 struct GitLabClaims {
-	// Deprecated and thus optional as it might be removed in the futre
-	sub_legacy: Option<String>,
-	groups: Vec<String>,
+    // Deprecated and thus optional as it might be removed in the future
+    sub_legacy: Option<String>,
+    groups: Vec<String>,
 }
 impl AdditionalClaims for GitLabClaims {}
 
-pub fn http_client(request: HttpRequest) -> Result<HttpResponse, Error<reqwest::Error>> {
-	let client = blocking::Client::builder()
-		// Following redirects opens the client up to SSRF vulnerabilities.
-		.redirect(reqwest::redirect::Policy::none())
-		.build()
-		.map_err(Error::Reqwest)?;
+struct HttpClient {
+    ca: Option<Certificate>,
+}
 
-	let mut request_builder = client
-		.request(request.method, request.url.as_str())
-		.body(request.body);
+impl HttpClient {
+    pub fn try_new(ca: &Option<String>) -> Result<Self, Error<reqwest::Error>> {
+        // TODO: ca.map(path2cert);
+        if let Some(ca) = ca {
+            let mut buf = Vec::new();
+            File::open(ca)
+                .map_err(Error::Io)?
+                .read_to_end(&mut buf)
+                .map_err(Error::Io)?;
+            let ca = reqwest::Certificate::from_pem(&buf).map_err(Error::Reqwest)?;
+            Ok(HttpClient { ca: Some(ca) })
+        } else {
+            Ok(HttpClient { ca: None })
+        }
+    }
 
-	for (name, value) in &request.headers {
-		request_builder = request_builder.header(name.as_str(), value.as_bytes());
-	}
-	let mut response = client
-		.execute(request_builder.build().map_err(Error::Reqwest)?)
-		.map_err(Error::Reqwest)?;
+    pub fn http_client(
+        self,
+    ) -> impl Fn(HttpRequest) -> Result<HttpResponse, Error<reqwest::Error>> {
+        let builder = blocking::Client::builder()
+            // Following redirects opens the client up to SSRF vulnerabilities.
+            .redirect(reqwest::redirect::Policy::none());
+        let builder = if let Some(cert) = self.ca {
+            builder.add_root_certificate(cert)
+        } else {
+            builder
+        };
+        let client = builder.build().unwrap();
+        // .map_err(Error::Reqwest)?;
+        move |request: HttpRequest| {
+            let mut request_builder = client
+                .request(request.method, request.url.as_str())
+                .body(request.body);
 
-	let mut body = Vec::new();
-	response.read_to_end(&mut body).map_err(Error::Io)?;
+            for (name, value) in &request.headers {
+                request_builder = request_builder.header(name.as_str(), value.as_bytes());
+            }
+            let mut response = client
+                .execute(request_builder.build().map_err(Error::Reqwest)?)
+                .map_err(Error::Reqwest)?;
 
-	{
-		Ok(HttpResponse {
-			status_code: response.status(),
-			headers: response.headers().to_owned(),
-			body,
-		})
-	}
+            let mut body = Vec::new();
+            response.read_to_end(&mut body).map_err(Error::Io)?;
+            Ok(HttpResponse {
+                status_code: response.status(),
+                headers: response.headers().to_owned(),
+                body,
+            })
+        }
+    }
 }
 
 // Try to login to gitlab using oidc
 // save the token to cache file and return the login information in case of success
-pub fn login(host: &String, config: &OAuth2, opts: &Opts) -> Result<OAuth2Token> {
-	let gitlab_client_id = ClientId::new(config.id.to_string());
-	let gitlab_client_secret = ClientSecret::new(config.secret.to_string());
-	let issuer_url =
-		IssuerUrl::new(format!("https://{}", host)).with_context(|| "Invalid issuer URL")?;
+pub fn login(host: &Host, config: &OAuth2, opts: &Opts) -> Result<OAuth2Token> {
+    let gitlab_client_id = ClientId::new(config.id.to_string());
+    let gitlab_client_secret = ClientSecret::new(config.secret.to_string());
+    let issuer_url =
+        IssuerUrl::new(format!("https://{}", host.name)).with_context(|| "Invalid issuer URL")?;
 
-	// Fetch GitLab's OpenID Connect discovery document.
-	let provider_metadata = CoreProviderMetadata::discover(&issuer_url, http_client)
-		.with_context(|| "Failed to discover OpenID Provider")?;
+    let http_client = HttpClient::try_new(&host.ca)?.http_client();
 
-	// Set up the config for the GitLab OAuth2 process.
-	let client = CoreClient::from_provider_metadata(
-		provider_metadata,
-		gitlab_client_id,
-		Some(gitlab_client_secret),
-	)
-	// set the redirect url to where we will be listening
-	.set_redirect_uri(
-		RedirectUrl::new(format!("http://localhost:{}", config.redirect_port))
-			.with_context(|| "Invalid redirect URL")?,
-	);
+    // Fetch GitLab's OpenID Connect discovery document.
+    let provider_metadata = CoreProviderMetadata::discover(&issuer_url, http_client)
+        .with_context(|| "Failed to discover OpenID Provider")?;
 
-	// Generate the authorization URL to which we'll redirect the user.
-	let (authorize_url, csrf_state, nonce) = client
-		.authorize_url(
-			AuthenticationFlow::<CoreResponseType>::AuthorizationCode,
-			CsrfToken::new_random,
-			Nonce::new_random,
-		)
-		.add_scope(Scope::new("api".to_string()))
-		.url();
+    // Set up the config for the GitLab OAuth2 process.
+    let client = CoreClient::from_provider_metadata(
+        provider_metadata,
+        gitlab_client_id,
+        Some(gitlab_client_secret),
+    )
+    // set the redirect url to where we will be listening
+    .set_redirect_uri(
+        RedirectUrl::new(format!("http://localhost:{}", config.redirect_port))
+            .with_context(|| "Invalid redirect URL")?,
+    );
 
-	// ask the OS to open the url
-	let url = authorize_url.to_string();
-	if opts.verbose {
-		println!("redirect to {}", &url)
-	}
-	open::that(url)?;
+    // Generate the authorization URL to which we'll redirect the user.
+    let (authorize_url, csrf_state, nonce) = client
+        .authorize_url(
+            AuthenticationFlow::<CoreResponseType>::AuthorizationCode,
+            CsrfToken::new_random,
+            Nonce::new_random,
+        )
+        .add_scope(Scope::new("api".to_string()))
+        .url();
 
-	// A very naive implementation of the redirect server.
-	let listener = TcpListener::bind(format!("127.0.0.1:{}", config.redirect_port))
-		.with_context(|| "Failed to listen to redirect url")?;
+    // ask the OS to open the url
+    let url = authorize_url.to_string();
+    if opts.verbose {
+        println!("redirect to {}", &url)
+    }
+    open::that(url)?;
 
-	// Accept one connection
-	let (mut stream, _) = listener.accept()?;
-	let code;
-	let state;
-	{
-		let mut reader = BufReader::new(&stream);
+    // A very naive implementation of the redirect server.
+    let listener = TcpListener::bind(format!("127.0.0.1:{}", config.redirect_port))
+        .with_context(|| "Failed to listen to redirect url")?;
 
-		let mut request_line = String::new();
-		reader.read_line(&mut request_line)?;
+    // Accept one connection
+    let (mut stream, _) = listener.accept()?;
+    let code;
+    let state;
+    {
+        let mut reader = BufReader::new(&stream);
 
-		let redirect_url = request_line.split_whitespace().nth(1).unwrap();
-		let url = Url::parse(&("http://localhost".to_string() + redirect_url))?;
+        let mut request_line = String::new();
+        reader.read_line(&mut request_line)?;
 
-		let code_pair = url
-			.query_pairs()
-			.find(|pair| {
-				let &(ref key, _) = pair;
-				key == "code"
-			})
-			.unwrap();
+        let redirect_url = request_line.split_whitespace().nth(1).unwrap();
+        let url = Url::parse(&("http://localhost".to_string() + redirect_url))?;
 
-		let (_, value) = code_pair;
-		code = AuthorizationCode::new(value.into_owned());
+        let code_pair = url
+            .query_pairs()
+            .find(|pair| {
+                let (key, _) = pair;
+                key == "code"
+            })
+            .unwrap();
 
-		let state_pair = url
-			.query_pairs()
-			.find(|pair| {
-				let &(ref key, _) = pair;
-				key == "state"
-			})
-			.unwrap();
+        let (_, value) = code_pair;
+        code = AuthorizationCode::new(value.into_owned());
 
-		let (_, value) = state_pair;
-		state = CsrfToken::new(value.into_owned());
-	}
+        let state_pair = url
+            .query_pairs()
+            .find(|pair| {
+                let (key, _) = pair;
+                key == "state"
+            })
+            .unwrap();
 
-	let page = formatdoc! {"
-        <!DOCTYPE HTML>
-        <html>
+        let (_, value) = state_pair;
+        state = CsrfToken::new(value.into_owned());
+    }
+
+    let page = formatdoc! {"
+		<!DOCTYPE HTML>
+		<html>
 			<head>
 				<title>{name}</title>
 				<style>
@@ -167,41 +196,42 @@ pub fn login(host: &String, config: &OAuth2, opts: &Opts) -> Result<OAuth2Token>
 					</script>
 				</div>
 			</body>
-        </html>"
-	,
-	version = env!("CARGO_PKG_VERSION"),
-	name = env!("CARGO_BIN_NAME") };
-	let response = format!(
-		"HTTP/1.1 200 OK\r\ncontent-length: {}\r\n\r\n{}",
-		page.len(),
-		page
-	);
-	stream.write_all(response.as_bytes())?;
+		</html>"
+    ,
+    version = env!("CARGO_PKG_VERSION"),
+    name = env!("CARGO_BIN_NAME") };
+    let response = format!(
+        "HTTP/1.1 200 OK\r\ncontent-length: {}\r\n\r\n{}",
+        page.len(),
+        page
+    );
+    stream.write_all(response.as_bytes())?;
 
-	if state.secret() != csrf_state.secret() {
-		bail!("CSRF test failed")
-	}
+    if state.secret() != csrf_state.secret() {
+        bail!("CSRF test failed")
+    }
 
-	// Exchange the code with a token.
-	let token_response = client
-		.exchange_code(code)
-		.request(http_client)
-		.with_context(|| "Failed to contact token endpoint")?;
+    let http_client = HttpClient::try_new(&host.ca)?.http_client();
+    // Exchange the code with a token.
+    let token_response = client
+        .exchange_code(code)
+        .request(http_client)
+        .with_context(|| "Failed to contact token endpoint")?;
 
-	let id_token_verifier: CoreIdTokenVerifier = client.id_token_verifier();
-	// verify the claims
-	token_response
-		.extra_fields()
-		.id_token()
-		.ok_or_else(|| anyhow!("Server did not return an ID token"))?
-		.claims(&id_token_verifier, &nonce)
-		.with_context(|| "Failed to verify ID token")?;
+    let id_token_verifier: CoreIdTokenVerifier = client.id_token_verifier();
+    // verify the claims
+    token_response
+        .extra_fields()
+        .id_token()
+        .ok_or_else(|| anyhow!("Server did not return an ID token"))?
+        .claims(&id_token_verifier, &nonce)
+        .with_context(|| "Failed to verify ID token")?;
 
-	// save into cache
-	let cache = OAuth2Token::new(token_response.access_token().secret().to_owned());
-	if !opts.no_cache {
-		let _ = cache.save();
-	}
+    // save into cache
+    let cache = OAuth2Token::new(token_response.access_token().secret().to_owned());
+    if !opts.no_cache {
+        let _ = cache.save();
+    }
 
-	Ok(cache)
+    Ok(cache)
 }
