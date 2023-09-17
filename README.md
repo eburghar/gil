@@ -1,8 +1,8 @@
-# glctl
+# gil
 
 [TOC]
 
-`glctl` aims to ease interactions between a local git repository and its GitLab counterpart, and
+`gil` aims to ease interactions between a local git repository and its GitLab counterpart, and
 to achieve that goal:
 
 - it uses oauth2 authentication: meaning that if your browser is connected to GitLab no password is
@@ -31,12 +31,14 @@ is in place, so feel free to fork or send PR.
   
   - `project`: display information about GitLab project (mainly to open the page in the browser)
 
+It works on Windows.
+
 ## General use
 
 ```
-glctl 0.5.9
+gil 0.6.0
 
-Usage: glctl [-c <config>] [-v] [-o] [-u] [--color <color>] [--no-cache] <command> [<args>]
+Usage: gil [-c <config>] [-v] [-o] [-u] [--color <color>] [--no-cache] <command> [<args>]
 
 Interact with Gitlab API
 
@@ -59,7 +61,7 @@ Commands:
 
 ## Modus operandi
 
-If no clue is given from the command line arguments, `glctl` tries to gather information by
+If no clue is given from the command line arguments, `gil` tries to gather information by
 first locating the git root directory, starting from the working directory and checking parents
 directories if necessary :
 
@@ -83,13 +85,6 @@ consequence the `Containerfile` is not changing very often, and I can end up hav
 different versions pointing to the same commit.
 
 ### Basic workflows
-
-First define an alias for `glctl` :
-
-```bash
-# better name for glctl
-alias gil=glctl
-```
 
 Say you are in a project repository hosted on your GitLab instance. The project has a CI/CD configuration
 that triggers a build for each commit with a protected tag. If you push a new tag :
@@ -215,12 +210,14 @@ Sometimes you want to quickly extract a project archive :
 gil archive extract -r -p group/project 0.5.0
 ```
 
-## Archive command
+## Archiv
+It works on Windows.
+e command
 
 ```
-glctl 0.5.9
+gil 0.6.0
 
-Usage: glctl archive extract [<ref_>] [-p <project>] [-b <batch>] [-s <strip>] [-r] [-d <dir>] [-k] [-u]
+Usage: gil archive extract [<ref_>] [-p <project>] [-b <batch>] [-s <strip>] [-r] [-d <dir>] [-k] [-u]
 
 Get and extract archives
 
@@ -257,12 +254,14 @@ archive on disk.
 In update mode, a lock file containing the hash of the latest commit is used to decide if we need to
 re-extract archives.
 
-## Tags command
+## Tags c
+It works on Windows.
+ommand
 
 ```
-glctl 0.5.9
+gil 0.6.0
 
-Usage: glctl tags <command> [<args>]
+Usage: gil tags <command> [<args>]
 
 Manage project tags
 
@@ -276,12 +275,14 @@ Commands:
 
 Allow switching on and off tags protection. Without argument, it will (un)protect all tags (matching `*`).
 
-## Pipeline command
+## Pipeli
+It works on Windows.
+ne command
 
 ```
-glctl 0.5.9
+gil 0.6.0
 
-Usage: glctl pipeline <command> [<args>]
+Usage: gil pipeline <command> [<args>]
 
 Manage project pipeline
 
@@ -295,12 +296,14 @@ Commands:
   log               Get log from a job
 ```
 
-### log sub command
+### log s
+It works on Windows.
+ub command
 
 ```
-glctl 0.5.9
+gil 0.6.0
 
-Usage: glctl pipeline log [<id>] [-p <project>] [-r <ref>] [-s <section>] [-j <job-id>] [-a] [-h] [-H]
+Usage: gil pipeline log [<id>] [-p <project>] [-r <ref>] [-s <section>] [-j <job-id>] [-a] [-h] [-H]
 
 Get log from a job
 
@@ -327,19 +330,19 @@ an ending with `<` if they are collapsed. The section IDs are indicated between 
 To show all sections (uncollapsed) with headers :
 
 ```bash
-glctl pipeline log -h -a
+gil pipeline log -h -a
 ```
 
 To show only the `step_script` section with all other sections collapsed :
 
 ```bash
-glctl pipeline log -h
+gil pipeline log -h
 ```
 
 To show only the sections which names contain `prepare` :
 
 ```bash
-glctl pipeline log -h -s prepare
+gil pipeline log -h -s prepare
 ```
 
 Depending on the `color` mode, all colors (ANSI codes) may be striped out from the log.
@@ -348,12 +351,13 @@ Depending on the `color` mode, all colors (ANSI codes) may be striped out from t
 
 The configuration is searched from these places :
 
-1. `GLCTL_CONFIG` environment variable
+1. `GIL_CONFIG` environment variable
 
-2. `.glctl_config.yaml` in the working directory
+2. `.gil_config.yaml` in the working directory
 
 3. `config.yaml` inside the config directory (OS dependent). For Linux, it is
-   `~/.config/glctl/config.yaml`
+   `~/.config/gil/config.yaml`, For Windows it is
+   `C:\Users\myuser\AppData\Roaming\ITSufficient\Gil\config`
 
 For access token authentication, the configuration file looks like :
 
