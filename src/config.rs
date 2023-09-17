@@ -3,18 +3,32 @@ use crate::{args::Opts, oidc::login};
 use anyhow::{anyhow, Context, Result};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
-use std::{env, fs::File, ops::Deref, path::PathBuf};
+use std::{
+	env,
+	fs::{create_dir_all, File},
+	ops::Deref,
+	path::PathBuf,
+};
+
+static ORG: &str = "ITSufficient";
 
 /// Root configuration file
 #[derive(Deserialize)]
 pub struct Config {
 	/// gitlab host
-	pub host: String,
+	pub host: Host,
 	// auth type
 	pub auth: AuthType,
 	#[serde(skip)]
 	/// filename associated to the config file
 	pub name: String,
+}
+
+/// Host parameters
+#[derive(Deserialize)]
+pub struct Host {
+	pub name: String,
+	pub ca: Option<String>,
 }
 
 /// Authentication type supported
@@ -42,9 +56,9 @@ pub struct OAuth2 {
 impl Config {
 	/// Initialiser from an optional file path.
 	/// If no path is given, it will try to find one from
-	/// - GLCTL_CONFIG environment variable
-	/// - HOME directory: ~/.config/glctl/config.yaml
-	/// - Current directory: .glctl_config.yaml
+	/// - GIL_CONFIG environment variable
+	/// - HOME directory: ~/.config/gil/config.yaml
+	/// - Current directory: .gil_config.yaml
 	pub fn from_file(path: Option<&String>, verbose: bool) -> Result<Self> {
 		// if a config path was given, try that
 		let config_path = if let Some(config) = path {
@@ -52,18 +66,18 @@ impl Config {
 		// otherwise try to find a configuration file from
 		} else {
 			// first test from env var
-			env::var("GLCTL_CONFIG")
+			env::var("GIL_CONFIG")
 				.ok()
 				.map(PathBuf::from)
 				.filter(|path| path.exists())
 				// then test from project dir
 				.or_else(|| {
-					ProjectDirs::from("me", "IT Sufficient", "GlCtl")
+					ProjectDirs::from("me", ORG, env!("CARGO_BIN_NAME"))
 						.map(|dir| dir.config_dir().join("config.yaml"))
 						.filter(|path| path.exists())
 				})
 				// then test in current directory
-				.or_else(|| Some(PathBuf::from(".glctl_config.yaml")))
+				.or_else(|| Some(PathBuf::from(".gil_config.yaml")))
 				.filter(|path| path.exists())
 				// finally return an error if nothing worked
 				.ok_or_else(|| anyhow!("Unable to find a suitable configuration file"))?
@@ -100,9 +114,9 @@ impl OAuth2Token {
 		Self(token)
 	}
 
-	/// Try silentely read the cache file
+	/// Try silently read the cache file
 	pub fn from_cache() -> Option<Self> {
-		ProjectDirs::from("me", "IT Sufficient", "GlCtl")
+		ProjectDirs::from("me", ORG, env!("CARGO_BIN_NAME"))
 			.map(|dir| dir.cache_dir().join("oidc_login"))
 			.and_then(|path| {
 				File::open(path)
@@ -112,16 +126,20 @@ impl OAuth2Token {
 	}
 
 	/// Try to login
-	pub fn from_login(host: &String, config: &OAuth2, opts: &Opts) -> Result<Self> {
+	pub fn from_login(host: &Host, config: &OAuth2, opts: &Opts) -> Result<Self> {
 		login(host, config, opts)
 	}
 
 	/// Try to save the cache information to file
 	pub fn save(&self) -> Result<()> {
-		ProjectDirs::from("me", "IT Sufficient", "GlCtl")
+		ProjectDirs::from("me", ORG, env!("CARGO_BIN_NAME"))
 			.ok_or_else(|| anyhow!("Unable to find a suitable cache file path for oidc login"))
 			.map(|dir| dir.cache_dir().join("oidc_login"))
 			.and_then(|path| {
+				// create directories
+				if let Some(p) = path.parent() {
+					create_dir_all(p)?
+				}
 				File::create(path)
 					.with_context(|| "Unable to open the cache file")
 					.and_then(|file| {
