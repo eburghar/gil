@@ -1,38 +1,100 @@
 use crate::{
 	args::Opts,
-	config::{OAuth2, OAuth2Token},
+	config::{Host, OAuth2, OAuth2Token},
 };
 
 use anyhow::{anyhow, bail, Context, Result};
 use indoc::formatdoc;
+use openidconnect::reqwest::Error;
 use openidconnect::url::Url;
 use openidconnect::{
 	core::{CoreClient, CoreIdTokenVerifier, CoreProviderMetadata, CoreResponseType},
-	reqwest::http_client,
 	AdditionalClaims, AuthenticationFlow, AuthorizationCode, ClientId, ClientSecret, CsrfToken,
-	IssuerUrl, Nonce, OAuth2TokenResponse, RedirectUrl, Scope,
+	HttpRequest, HttpResponse, IssuerUrl, Nonce, OAuth2TokenResponse, RedirectUrl, Scope,
 };
+use reqwest::{blocking, Certificate};
 use serde::{Deserialize, Serialize};
 use std::{
-	io::{BufRead, BufReader, Write},
+	fs::File,
+	io::{BufRead, BufReader, Read, Write},
 	net::TcpListener,
 };
 
 #[derive(Debug, Deserialize, Serialize)]
 struct GitLabClaims {
-	// Deprecated and thus optional as it might be removed in the futre
+	// Deprecated and thus optional as it might be removed in the future
 	sub_legacy: Option<String>,
 	groups: Vec<String>,
 }
 impl AdditionalClaims for GitLabClaims {}
 
+struct HttpClient {
+	ca: Option<Certificate>,
+}
+
+impl HttpClient {
+	pub fn try_new(ca: &Option<String>) -> Result<Self, anyhow::Error> {
+		let ca = if let Some(ca) = ca {
+			let mut buf = Vec::new();
+			File::open(ca)
+				.with_context(|| format!("Error opening {}", ca))?
+				.read_to_end(&mut buf)
+				.with_context(|| format!("Error reading {}", ca))?;
+			Some(
+				reqwest::Certificate::from_pem(&buf)
+					.map_err(Error::Reqwest)
+					.with_context(|| format!("Reading certificate {}", ca))?,
+			)
+		} else {
+			None
+		};
+		Ok(HttpClient { ca })
+	}
+
+	pub fn http_client(
+		self,
+	) -> impl Fn(HttpRequest) -> Result<HttpResponse, Error<reqwest::Error>> {
+		move |request: HttpRequest| {
+			let mut builder = blocking::Client::builder()
+				// Following redirects opens the client up to SSRF vulnerabilities.
+				.redirect(reqwest::redirect::Policy::none());
+			builder = if let Some(cert) = &self.ca {
+				builder.add_root_certificate(cert.to_owned())
+			} else {
+				builder
+			};
+			let client = builder.build().map_err(Error::Reqwest)?;
+			let mut request_builder = client
+				.request(request.method, request.url.as_str())
+				.body(request.body);
+
+			for (name, value) in &request.headers {
+				request_builder = request_builder.header(name.as_str(), value.as_bytes());
+			}
+			let mut response = client
+				.execute(request_builder.build().map_err(Error::Reqwest)?)
+				.map_err(Error::Reqwest)?;
+
+			let mut body = Vec::new();
+			response.read_to_end(&mut body).map_err(Error::Io)?;
+			Ok(HttpResponse {
+				status_code: response.status(),
+				headers: response.headers().to_owned(),
+				body,
+			})
+		}
+	}
+}
+
 // Try to login to gitlab using oidc
 // save the token to cache file and return the login information in case of success
-pub fn login(host: &String, config: &OAuth2, opts: &Opts) -> Result<OAuth2Token> {
+pub fn login(host: &Host, config: &OAuth2, opts: &Opts) -> Result<OAuth2Token> {
 	let gitlab_client_id = ClientId::new(config.id.to_string());
 	let gitlab_client_secret = ClientSecret::new(config.secret.to_string());
 	let issuer_url =
-		IssuerUrl::new(format!("https://{}", host)).with_context(|| "Invalid issuer URL")?;
+		IssuerUrl::new(format!("https://{}", host.name)).with_context(|| "Invalid issuer URL")?;
+
+	let http_client = HttpClient::try_new(&host.ca)?.http_client();
 
 	// Fetch GitLab's OpenID Connect discovery document.
 	let provider_metadata = CoreProviderMetadata::discover(&issuer_url, http_client)
@@ -87,7 +149,7 @@ pub fn login(host: &String, config: &OAuth2, opts: &Opts) -> Result<OAuth2Token>
 		let code_pair = url
 			.query_pairs()
 			.find(|pair| {
-				let &(ref key, _) = pair;
+				let (key, _) = pair;
 				key == "code"
 			})
 			.unwrap();
@@ -98,7 +160,7 @@ pub fn login(host: &String, config: &OAuth2, opts: &Opts) -> Result<OAuth2Token>
 		let state_pair = url
 			.query_pairs()
 			.find(|pair| {
-				let &(ref key, _) = pair;
+				let (key, _) = pair;
 				key == "state"
 			})
 			.unwrap();
@@ -108,8 +170,8 @@ pub fn login(host: &String, config: &OAuth2, opts: &Opts) -> Result<OAuth2Token>
 	}
 
 	let page = formatdoc! {"
-        <!DOCTYPE HTML>
-        <html>
+		<!DOCTYPE HTML>
+		<html>
 			<head>
 				<title>{name}</title>
 				<style>
@@ -136,7 +198,7 @@ pub fn login(host: &String, config: &OAuth2, opts: &Opts) -> Result<OAuth2Token>
 					</script>
 				</div>
 			</body>
-        </html>"
+		</html>"
 	,
 	version = env!("CARGO_PKG_VERSION"),
 	name = env!("CARGO_BIN_NAME") };
@@ -151,6 +213,7 @@ pub fn login(host: &String, config: &OAuth2, opts: &Opts) -> Result<OAuth2Token>
 		bail!("CSRF test failed")
 	}
 
+	let http_client = HttpClient::try_new(&host.ca)?.http_client();
 	// Exchange the code with a token.
 	let token_response = client
 		.exchange_code(code)
