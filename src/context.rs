@@ -1,14 +1,16 @@
 use crate::{
+    api::personal_access_tokens::{PersonalAccessTokenState, PersonalAccessTokens},
     args::{ColorChoice, Opts, PipelineLog},
     color::{Style, StyledStr},
     config::{AuthType, Config, OAuth2Token},
     fmt::{Colorizer, Stream},
     git::GitProject,
+    types::PersonalAccessToken,
     utils::{format_duration, take_from_vec},
 };
 
 use anyhow::{anyhow, bail, Context, Result};
-use chrono::Utc;
+use chrono::{NaiveTime, Utc};
 use gitlab::{
     api::{
         projects::{
@@ -17,6 +19,7 @@ use gitlab::{
             pipelines,
             repository::{branches, tags},
         },
+        users::{CurrentUser, Users},
         Query,
     },
     types, Gitlab, StatusState,
@@ -99,7 +102,7 @@ impl FromStr for Section {
                     .unwrap_or(false),
             })
         } else {
-            bail!("Section delimiter not found")
+            Err(anyhow!("Section delimiter not found"))
         }
     }
 }
@@ -224,7 +227,9 @@ impl CliContext {
                 .query(&self.gitlab)
                 .with_context(|| format!("Can't find a project named {}", id))
         } else {
-            bail!("Can't find a project name. Specify one manually on the command line")
+            Err(anyhow!(
+                "Can't find a project name. Specify one manually on the command line"
+            ))
         }
     }
 
@@ -248,10 +253,10 @@ impl CliContext {
                     )
                 })
         } else {
-            bail!(
+            Err(anyhow!(
                 "Can't find a tag for project {}. Specify one manually on the command line",
                 &project.path_with_namespace
-            )
+            ))
         }
     }
 
@@ -275,10 +280,10 @@ impl CliContext {
                     )
                 })
         } else {
-            bail!(
+            Err(anyhow!(
                 "Can't find a branch for project {}.",
                 &project.path_with_namespace
-            )
+            ))
         }
     }
 
@@ -476,6 +481,64 @@ impl CliContext {
             )
         })?;
         Ok(jobs)
+    }
+
+    /// Get current user
+    pub fn get_current_user(&self) -> Result<types::UserBasic> {
+        let endpoint = CurrentUser::builder().build()?;
+        let user = endpoint
+            .query(&self.gitlab)
+            .with_context(|| "Failed to get current user information")?;
+        Ok(user)
+    }
+
+    /// Get user with name or current user
+    pub fn get_user(&self, username: Option<&String>) -> Result<types::UserBasic> {
+        if let Some(username) = username {
+            let endpoint = Users::builder().username(username).build()?;
+            let users: Vec<types::UserBasic> = endpoint
+                .query(&self.gitlab)
+                .with_context(|| format!("Failed to get user {} information", username))?;
+            if users.len() > 1 {
+                bail!("More than one user matching {}", username);
+            }
+            users
+                .into_iter()
+                .nth(0)
+                .ok_or_else(|| anyhow!("Fail to get a user"))
+        } else {
+            self.get_current_user()
+        }
+    }
+
+    /// Get a token by its name or id
+    pub fn get_token(&self, name: &String) -> Result<PersonalAccessToken> {
+        let user = self.get_current_user()?;
+        let tokens: Vec<PersonalAccessToken> = if let Ok(token_id) = name.parse::<u64>() {
+            let endpoint = PersonalAccessTokens::builder()
+                .user_id(user.id.value())
+                .state(Some(PersonalAccessTokenState::Active))
+                .build()?;
+            let tokens: Vec<PersonalAccessToken> = endpoint.query(&self.gitlab)?;
+            tokens.into_iter().filter(|e| e.id == token_id).collect()
+        } else {
+            let endpoint = PersonalAccessTokens::builder()
+                .user_id(user.id.value())
+                .state(Some(PersonalAccessTokenState::Active))
+                .search(Some(name))
+                .build()?;
+            endpoint.query(&self.gitlab)?
+        };
+        if tokens.len() > 1 {
+            bail!(
+                "More than one token matching {}: revoke by id instead of name.",
+                name
+            );
+        }
+        tokens
+            .into_iter()
+            .nth(0)
+            .ok_or_else(|| anyhow!("Failed to get a token"))
     }
 
     /// Print a StyledStr with Colorize
@@ -717,6 +780,73 @@ impl CliContext {
             msg.hint(format!("({})", &project.web_url));
         }
         msg.none("\n");
+        self.print_msg(msg)
+    }
+
+    pub fn print_tokens(
+        &self,
+        tokens: &[crate::types::PersonalAccessToken],
+        user: &types::UserBasic,
+    ) -> Result<()> {
+        let mut msg = StyledStr::new();
+        msg.none("Tokens for user ");
+        msg.literal(&user.username);
+        msg.hint(format!("({})\n", user.id.value()));
+        if !tokens.is_empty() {
+            for token in tokens.iter().rev() {
+                msg.literal(format!("- {}", token.name));
+                let token_id = token.id.to_string();
+                msg.hint("(");
+                if token.active {
+                    msg.good(token_id)
+                } else {
+                    msg.error(token_id)
+                }
+                msg.hint(")");
+                msg.hint(" [");
+                for (i, scope) in token.scopes.iter().enumerate() {
+                    if i > 0 {
+                        msg.hint(",")
+                    }
+                    msg.hint(scope.as_str());
+                }
+                msg.hint("] - ");
+                if token.active {
+                    msg.good("active");
+                } else {
+                    msg.error("inactive")
+                }
+                msg.none(" - ");
+                if token.revoked {
+                    msg.error("revoked");
+                } else {
+                    msg.good("issued");
+                    msg.hint(format!(
+                        " ({})",
+                        timeago::Formatter::new().convert_chrono(token.created_at, Utc::now(),)
+                    ));
+                }
+                msg.none(", ");
+                if token.expired() {
+                    msg.error("expired");
+                    if let Some(expires_at) = token.expires_at.map(|d| {
+                        d.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                            .and_utc()
+                    }) {
+                        msg.hint(format!(
+                            " ({})",
+                            timeago::Formatter::new().convert_chrono(expires_at, Utc::now(),)
+                        ));
+                    }
+                } else {
+                    msg.good("valid");
+                    if let Some(expires_at) = token.expires_at {
+                        msg.hint(format!(" (until {})", expires_at));
+                    }
+                };
+                msg.none("\n");
+            }
+        }
         self.print_msg(msg)
     }
 }

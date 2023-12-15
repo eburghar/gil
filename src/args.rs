@@ -1,7 +1,10 @@
 #[cfg(feature = "color")]
 use argh::FromArgValue;
 use argh::{FromArgs, TopLevelCommand};
+use chrono::NaiveDate;
 use std::{env, path::Path};
+
+use crate::types::token::PersonalAccessTokenScope;
 
 /// Color mode
 #[allow(dead_code)]
@@ -70,6 +73,7 @@ pub enum SubCommand {
     Build(Pipeline),
     Archive(Archive),
     Project(Project),
+    Token(Token),
 }
 
 /// Get and extract archives
@@ -379,4 +383,98 @@ pub struct Project {
     /// reference (tag or branch)
     #[argh(positional)]
     pub ref_: Option<String>,
+}
+
+/// Manage user tokens
+#[derive(FromArgs)]
+#[argh(subcommand, name = "token")]
+pub struct Token {
+    #[argh(subcommand)]
+    /// operate on tokens
+    pub cmd: TokenCmd,
+}
+
+#[derive(FromArgs)]
+#[argh(subcommand)]
+pub enum TokenCmd {
+    List(TokenList),
+    Create(TokenCreate),
+    Revoke(TokenRevoke),
+    Rotate(TokenRotate),
+}
+
+/// Create a new token
+#[derive(FromArgs)]
+#[argh(subcommand, name = "create")]
+pub struct TokenCreate {
+    /// the user which owns the token
+    #[argh(option, short = 'u')]
+    pub username: Option<String>,
+
+    /// the token scopes
+    #[argh(option, short = 's')]
+    pub scopes: Vec<PersonalAccessTokenScope>,
+
+    /// the expiration date
+    #[argh(option, short = 'e')]
+    pub expires_at: Option<NaiveDate>,
+
+    /// revoke a token with same name if it exists
+    #[argh(switch, short = 'r')]
+    pub revoke: bool,
+
+    /// the token name
+    #[argh(positional)]
+    pub name: String,
+}
+
+/// Delete a token
+#[derive(FromArgs)]
+#[argh(subcommand, name = "revoke")]
+pub struct TokenRevoke {
+    /// the user which owns the token
+    #[argh(option, short = 'u')]
+    pub username: Option<String>,
+
+    /// the token name
+    #[argh(positional)]
+    pub name: String,
+}
+
+/// List tokens
+#[derive(FromArgs)]
+#[argh(subcommand, name = "list")]
+pub struct TokenList {
+    /// the username to list the tokens that belong to (only for admin and by default current user)
+    #[argh(option, short = 'u')]
+    pub username: Option<String>,
+
+    /// list revoked tokens (implies --all)
+    #[argh(switch, short = 'r')]
+    pub revoked: bool,
+
+    /// list all tokens (only active ones per default)
+    #[argh(switch, short = 'a')]
+    pub all: bool,
+
+    /// the pattern of token to search names for
+    #[argh(positional)]
+    pub search: Option<String>,
+}
+
+/// Rotate token
+#[derive(FromArgs)]
+#[argh(subcommand, name = "rotate")]
+pub struct TokenRotate {
+    /// the user which owns the token
+    #[argh(option, short = 'u')]
+    pub username: Option<String>,
+
+    /// the expiration date
+    #[argh(option, short = 'e')]
+    pub expires_at: Option<NaiveDate>,
+
+    /// the token name
+    #[argh(positional)]
+    pub name: String,
 }
