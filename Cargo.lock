@@ -932,6 +932,7 @@ dependencies = [
  "flate2",
  "git-repository",
  "gitlab",
+ "http 1.0.0",
  "indoc",
  "open",
  "openidconnect",
@@ -1458,7 +1459,7 @@ dependencies = [
  "derive_builder 0.11.2",
  "futures-util",
  "graphql_client",
- "http",
+ "http 0.2.8",
  "itertools",
  "log",
  "percent-encoding",
@@ -1550,7 +1551,7 @@ dependencies = [
  "futures-core",
  "futures-sink",
  "futures-util",
- "http",
+ "http 0.2.8",
  "indexmap 1.9.1",
  "slab",
  "tokio",
@@ -1636,13 +1637,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "http"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b32afd38673a8016f7c9ae69e5af41a58f81b1d31689040f2f1959594ce194ea"
+dependencies = [
+ "bytes",
+ "fnv",
+ "itoa",
+]
+
+[[package]]
 name = "http-body"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d5f38f16d184e36f2408a55281cd658ecbd3ca05cce6d6510a176eca393e26d1"
 dependencies = [
  "bytes",
- "http",
+ "http 0.2.8",
  "pin-project-lite",
 ]
 
@@ -1675,7 +1687,7 @@ dependencies = [
  "futures-core",
  "futures-util",
  "h2",
- "http",
+ "http 0.2.8",
  "http-body",
  "httparse",
  "httpdate",
@@ -1695,7 +1707,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d78e1e73ec14cf7375674f74d7dde185c8206fd9dea6fb6295e8a98098aaa97"
 dependencies = [
  "futures-util",
- "http",
+ "http 0.2.8",
  "hyper",
  "rustls",
  "tokio",
@@ -2093,7 +2105,7 @@ dependencies = [
  "base64 0.13.1",
  "chrono",
  "getrandom",
- "http",
+ "http 0.2.8",
  "rand",
  "reqwest",
  "serde",
@@ -2131,7 +2143,7 @@ dependencies = [
  "chrono",
  "dyn-clone",
  "hmac",
- "http",
+ "http 0.2.8",
  "itertools",
  "log",
  "oauth2",
@@ -2468,7 +2480,7 @@ dependencies = [
  "futures-core",
  "futures-util",
  "h2",
- "http",
+ "http 0.2.8",
  "http-body",
  "hyper",
  "hyper-rustls",
