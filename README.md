@@ -31,6 +31,10 @@ is in place, so feel free to fork or send PR.
   
   - `project`: display information about GitLab project (mainly to open the page in the browser)
 
+  - `token`: manage GitLab token
+
+  - `keys`: manage GitLab ssh keys
+
 It works on Windows.
 
 ## General use
@@ -57,6 +61,8 @@ Commands:
   pipeline          Manage project pipeline
   archive           Handle project archives
   project           Display information about project
+  token             Manage user tokens
+  keys              Manage user keys
 ```
 
 ## Modus operandi
@@ -339,6 +345,47 @@ gil pipeline log -h -s prepare
 
 Depending on the `color` mode, all colors (ANSI codes) may be striped out from the log.
 
+## Token command
+
+A generic command used to automatically provision tokens in script.
+
+```
+gil 0.6.0
+
+Usage: gil token <command> [<args>]
+
+Manage user tokens
+
+Options:
+  --help            display usage information
+
+Commands:
+  list              List tokens
+  create            Create a new token
+  revoke            Delete a token
+  rotate            Rotate token
+```
+
+## Keys command
+
+A generic command used to automatically provision ssh keys in script.
+
+```
+gil 0.6.0
+
+Usage: gil keys <command> [<args>]
+
+Manage user keys
+
+Options:
+  --help            display usage information
+
+Commands:
+  list              List keys
+  add               Add a key
+  delete            Delete a key
+```
+
 ## Configuration
 
 The configuration is searched from these places :
@@ -374,7 +421,7 @@ token:
   redirect-port: 8888
 ```
 
-You need to define a new OAuth application inside your GitLab instance (at `/ admin/applications`)
+You need to define a new OAuth application inside your GitLab instance (at `/admin/applications`)
 with an `api` scope and `http://localhost:8888` as the redirect URI (change to match `redirect-port`
 in config file) and copy the ID and secret to the configuration file.
 
