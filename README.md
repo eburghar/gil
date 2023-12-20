@@ -40,7 +40,7 @@ It works on Windows.
 ## General use
 
 ```
-gil 0.6.0
+gil 0.6.1
 
 Usage: gil [-c <config>] [-v] [-o] [-u] [--color <color>] [--no-cache] <command> [<args>]
 
@@ -219,7 +219,7 @@ gil archive extract -r -p group/project 0.5.0
 ## Archive command
 
 ```
-gil 0.6.0
+gil 0.6.1
 
 Usage: gil archive extract [<ref_>] [-p <project>] [-b <batch>] [-s <strip>] [-r] [-d <dir>] [-k] [-u]
 
@@ -261,7 +261,7 @@ re-extract archives.
 ## Tags command
 
 ```
-gil 0.6.0
+gil 0.6.1
 
 Usage: gil tags <command> [<args>]
 
@@ -280,7 +280,7 @@ Allow switching on and off tags protection. Without argument, it will (un)protec
 ## Pipeline command
 
 ```
-gil 0.6.0
+gil 0.6.1
 
 Usage: gil pipeline <command> [<args>]
 
@@ -299,7 +299,7 @@ Commands:
 ### log sub command
 
 ```
-gil 0.6.0
+gil 0.6.1
 
 Usage: gil pipeline log [<id>] [-p <project>] [-r <ref>] [-s <section>] [-j <job-id>] [-a] [-h] [-H]
 
@@ -350,7 +350,7 @@ Depending on the `color` mode, all colors (ANSI codes) may be striped out from t
 A generic command used to automatically provision tokens in script.
 
 ```
-gil 0.6.0
+gil 0.6.1
 
 Usage: gil token <command> [<args>]
 
@@ -371,7 +371,7 @@ Commands:
 A generic command used to automatically provision ssh keys in script.
 
 ```
-gil 0.6.0
+gil 0.6.1
 
 Usage: gil keys <command> [<args>]
 
