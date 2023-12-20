@@ -1,5 +1,8 @@
 use crate::{
-	api::personal_access_tokens::{PersonalAccessTokenState, PersonalAccessTokens},
+	api::{
+		personal_access_tokens::{PersonalAccessTokenState, PersonalAccessTokens},
+		users::keys::ListKeys,
+	},
 	args::{ColorChoice, Opts, PipelineLog},
 	color::{Style, StyledStr},
 	config::{AuthType, Config, OAuth2Token},
@@ -514,6 +517,8 @@ impl CliContext {
 	/// Get a token by its name or id
 	pub fn get_token(&self, name: &String) -> Result<PersonalAccessToken> {
 		let user = self.get_current_user()?;
+
+		// search token by id
 		let tokens: Vec<PersonalAccessToken> = if let Ok(token_id) = name.parse::<u64>() {
 			let endpoint = PersonalAccessTokens::builder()
 				.user_id(user.id.value())
@@ -521,6 +526,7 @@ impl CliContext {
 				.build()?;
 			let tokens: Vec<PersonalAccessToken> = endpoint.query(&self.gitlab)?;
 			tokens.into_iter().filter(|e| e.id == token_id).collect()
+		// search token by name
 		} else {
 			let endpoint = PersonalAccessTokens::builder()
 				.user_id(user.id.value())
@@ -529,6 +535,7 @@ impl CliContext {
 				.build()?;
 			endpoint.query(&self.gitlab)?
 		};
+
 		if tokens.len() > 1 {
 			bail!(
 				"More than one token matching {}: revoke by id instead of name.",
@@ -538,7 +545,34 @@ impl CliContext {
 		tokens
 			.into_iter()
 			.nth(0)
-			.ok_or_else(|| anyhow!("Failed to get a token"))
+			.ok_or_else(|| anyhow!("Token {} not found", name))
+	}
+
+	/// Get a key by its name of id
+	pub fn get_key(&self, name: &String) -> Result<SshKey> {
+		let user = self.get_current_user()?;
+		let endpoint = ListKeys::builder().user(&user.username).build()?;
+		let keys: Vec<SshKey> = endpoint.query(&self.gitlab)?;
+
+		// search key by id
+		let keys: Vec<SshKey> = if let Ok(key_id) = name.parse::<u64>() {
+			keys.into_iter()
+				.filter(|k| k.id.value() == key_id)
+				.collect()
+		// search key by title
+		} else {
+			keys.into_iter().filter(|k| &k.title == name).collect()
+		};
+
+		if keys.len() > 1 {
+			bail!(
+				"More than one key matching {}: Delete by id instead of name.",
+				name
+			);
+		}
+		keys.into_iter()
+			.nth(0)
+			.ok_or_else(|| anyhow!("Key {} not found", name))
 	}
 
 	/// Print a StyledStr with Colorize

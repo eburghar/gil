@@ -531,7 +531,7 @@ pub struct ListKeys {
 #[derive(FromArgs)]
 #[argh(subcommand, name = "delete")]
 pub struct DeleteKey {
-	/// the key id to delete
+	/// the key (id or title) to delete
 	#[argh(positional)]
-	pub key_id: u64,
+	pub name: String,
 }
