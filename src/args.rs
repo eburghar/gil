@@ -513,6 +513,10 @@ pub struct AddKey {
 	#[argh(option, short = 'u')]
 	pub usage_type: Option<KeyUsage>,
 
+	/// overwrite a key with the same title
+	#[argh(switch, short = 'w')]
+	pub overwrite: bool,
+
 	/// key path
 	#[argh(positional)]
 	pub key: String,

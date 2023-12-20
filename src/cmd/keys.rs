@@ -20,11 +20,29 @@ pub fn cmd(context: &CliContext, args: &args::Keys) -> Result<()> {
 				.as_ref()
 				.map(String::as_str)
 				.unwrap_or_else(|| ssh_key.comment());
+
+			if args.overwrite {
+				// try to delete existing key with same title on overwrite mode
+				if let Ok(key) = context.get_key(&title.to_string()) {
+					let endpoint = DeleteKey::builder().key_id(key.id.value()).build()?;
+					api::ignore(endpoint).query(&context.gitlab)?;
+				}
+			}
+
+			// try to add the key
 			let endpoint = AddKey::builder().key(&key).title(title).build()?;
 			api::ignore(endpoint)
 				.query(&context.gitlab)
 				.with_context(|| format!("Failed to add ssh key {}", &args.key))?;
-			println!("Key {} has been added", &ssh_key.comment());
+			println!(
+				"Key {} has been {}",
+				&title,
+				if args.overwrite {
+					"overwritten"
+				} else {
+					"added"
+				}
+			);
 			Ok(())
 		}
 
