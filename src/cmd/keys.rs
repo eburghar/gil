@@ -36,11 +36,12 @@ pub fn cmd(context: &CliContext, args: &args::Keys) -> Result<()> {
 		}
 
 		KeysCmd::Delete(args) => {
-			let endpoint = DeleteKey::builder().key_id(args.key_id).build()?;
+			let key = context.get_key(&args.name)?;
+			let endpoint = DeleteKey::builder().key_id(key.id.value()).build()?;
 			api::ignore(endpoint)
 				.query(&context.gitlab)
-				.with_context(|| format!("Failed to delete key {}", args.key_id))?;
-			println!("Key {} deleted", args.key_id);
+				.with_context(|| format!("Failed to delete key {}", args.name))?;
+			println!("Key {}({}) deleted", args.name, key.id.value());
 			Ok(())
 		}
 	}
