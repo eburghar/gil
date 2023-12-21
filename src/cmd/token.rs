@@ -92,5 +92,11 @@ pub fn cmd(context: &CliContext, args: &args::Token) -> Result<()> {
             }
         }
     }
+    if context.open {
+        let _ = open::that(format!(
+            "https://{}/-/profile/personal_access_tokens",
+            context.config.host.name
+        ));
+    }
     Ok(())
 }
