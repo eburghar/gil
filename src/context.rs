@@ -1,9 +1,10 @@
 use crate::{
 	api::{
+		keys::GetKey,
 		personal_access_tokens::{PersonalAccessTokenState, PersonalAccessTokens},
 		users::keys::ListKeys,
 	},
-	args::{ColorChoice, Opts, PipelineLog},
+	args::{ColorChoice, KeyIdType, Opts, PipelineLog},
 	color::{Style, StyledStr},
 	config::{AuthType, Config, OAuth2Token},
 	fmt::{Colorizer, Stream},
@@ -549,30 +550,30 @@ impl CliContext {
 	}
 
 	/// Get a key by its name of id
-	pub fn get_key(&self, name: &String) -> Result<SshKey> {
+	pub fn get_key(&self, id: &KeyIdType) -> Result<SshKey> {
 		let user = self.get_current_user()?;
 		let endpoint = ListKeys::builder().user(&user.username).build()?;
 		let keys: Vec<SshKey> = endpoint.query(&self.gitlab)?;
 
-		// search key by id
-		let keys: Vec<SshKey> = if let Ok(key_id) = name.parse::<u64>() {
-			keys.into_iter()
-				.filter(|k| k.id.value() == key_id)
-				.collect()
-		// search key by title
-		} else {
-			keys.into_iter().filter(|k| &k.title == name).collect()
+		let key = match id {
+			KeyIdType::Id(id) => keys.into_iter().filter(|k| k.id.value() == *id).nth(0),
+			KeyIdType::Name(name) => {
+				let mkeys: Vec<SshKey> = keys.into_iter().filter(|k| k.title == *name).collect();
+				if mkeys.len() > 1 {
+					bail!(
+						"More than one key matching {}: Delete by id instead of name.",
+						name
+					);
+				}
+				mkeys.into_iter().nth(0)
+			}
+			KeyIdType::FingerPrint(fingerprint) => {
+				let f = &fingerprint.to_string();
+				let endpoint = GetKey::builder().fingerprint(&f).build()?;
+				endpoint.query(&self.gitlab).ok()
+			}
 		};
-
-		if keys.len() > 1 {
-			bail!(
-				"More than one key matching {}: Delete by id instead of name.",
-				name
-			);
-		}
-		keys.into_iter()
-			.nth(0)
-			.ok_or_else(|| anyhow!("Key {} not found", name))
+		key.ok_or_else(|| anyhow!("Key {} not found", id))
 	}
 
 	/// Print a StyledStr with Colorize

@@ -1,8 +1,10 @@
+use anyhow::Error;
 #[cfg(feature = "color")]
 use argh::FromArgValue;
 use argh::{FromArgs, TopLevelCommand};
 use chrono::NaiveDate;
-use std::{env, path::Path};
+use ssh_key::Fingerprint;
+use std::{env, fmt::Display, path::Path, str::FromStr};
 
 use crate::types::{keys::KeyUsage, token::PersonalAccessTokenScope};
 
@@ -531,11 +533,43 @@ pub struct ListKeys {
 	pub user: Option<String>,
 }
 
+/// Identification of a key for the delete subcommand
+pub enum KeyIdType {
+	Id(u64),
+	Name(String),
+	FingerPrint(Fingerprint),
+}
+
+impl Display for KeyIdType {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			KeyIdType::Id(id) => write!(f, "Id({})", id),
+			KeyIdType::Name(name) => write!(f, "\"{}\"", name),
+			KeyIdType::FingerPrint(fingerprint) => write!(f, "{}", fingerprint),
+		}
+	}
+}
+
+/// Try to parse KeyId by fingerprint, id(u64) or fallback to name
+impl FromStr for KeyIdType {
+	type Err = Error;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		Ok(if let Ok(fingerprint) = Fingerprint::from_str(s) {
+			Self::FingerPrint(fingerprint)
+		} else if let Ok(id) = s.parse::<u64>() {
+			Self::Id(id)
+		} else {
+			Self::Name(s.to_owned())
+		})
+	}
+}
+
 /// Delete a key
 #[derive(FromArgs)]
 #[argh(subcommand, name = "delete")]
 pub struct DeleteKey {
-	/// the key (id or title) to delete
+	/// the key id (db id, fingerprint or name) do delete
 	#[argh(positional)]
-	pub name: String,
+	pub id: KeyIdType,
 }
