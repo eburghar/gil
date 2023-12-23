@@ -7,7 +7,7 @@ use crate::{
         users::personal_access_tokens::CreatePersonalAccessToken,
     },
     args,
-    args::TokenCmd,
+    args::{IdOrName, TokenCmd},
     context::CliContext,
     types::token::PersonalAccessToken,
 };
@@ -20,7 +20,7 @@ pub fn cmd(context: &CliContext, args: &args::Token) -> Result<()> {
         TokenCmd::Create(args) => {
             // try to revoke a token with the the same name
             if args.revoke {
-                if let Ok(token) = context.get_token(&args.name) {
+                if let Ok(token) = context.get_token(&IdOrName::Name(args.name.to_owned())) {
                     let endpoint = RevokePersonalAccessToken::builder()
                         .token_id(token.id)
                         .build()?;
@@ -92,11 +92,13 @@ pub fn cmd(context: &CliContext, args: &args::Token) -> Result<()> {
             }
         }
     }
+
     if context.open {
         let _ = open::that(format!(
             "https://{}/-/profile/personal_access_tokens",
             context.config.host.name
         ));
     }
+
     Ok(())
 }
