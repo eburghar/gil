@@ -13,29 +13,24 @@ mod types;
 mod utils;
 
 use crate::{
-    args::{Opts, SubCommand},
-    cmd::{
-        archive::cmd as archive, branches::cmd as branches, keys::cmd as keys,
-        pipeline::cmd as pipeline, project::cmd as project, tags::cmd as tags, token::cmd as token,
-    },
-    context::CliContext,
+	args::SubCommand,
+	cmd::{
+		archive::cmd as archive, branches::cmd as branches, keys::cmd as keys,
+		pipeline::cmd as pipeline, project::cmd as project, tags::cmd as tags, token::cmd as token,
+	},
+	context::CONTEXT,
 };
 
 use anyhow::Result;
 
 fn main() -> Result<()> {
-    // parse command line arguments
-    let opts: Opts = args::from_env();
-    // construct context
-    let context = CliContext::from_args(&opts)?;
-
-    match &opts.cmd {
-        SubCommand::Tags(args) => tags(&context, args),
-        SubCommand::Build(args) => pipeline(&context, args),
-        SubCommand::Archive(args) => archive(&context, args),
-        SubCommand::Project(args) => project(&context, args),
-        SubCommand::Branches(args) => branches(&context, args),
-        SubCommand::Token(args) => token(&context, args),
-        SubCommand::Keys(args) => keys(&context, args),
-    }
+	match &CONTEXT.cmd {
+		SubCommand::Tags(args) => tags(args),
+		SubCommand::Pipeline(args) => pipeline(args),
+		SubCommand::Archive(args) => archive(args),
+		SubCommand::Project(args) => project(args),
+		SubCommand::Branches(args) => branches(args),
+		SubCommand::Token(args) => token(args),
+		SubCommand::Keys(args) => keys(args),
+	}
 }
