@@ -12,591 +12,591 @@ use crate::types::{keys::KeyUsage, token::PersonalAccessTokenScope};
 #[allow(dead_code)]
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ColorChoice {
-    Auto,
-    Always,
-    Never,
+	Auto,
+	Always,
+	Never,
 }
 
 #[cfg(feature = "color")]
 impl FromArgValue for ColorChoice {
-    fn from_arg_value(value: &str) -> Result<Self, String> {
-        if value == "auto" {
-            Ok(Self::Auto)
-        } else if value == "always" {
-            Ok(Self::Always)
-        } else if value == "never" {
-            Ok(Self::Never)
-        } else {
-            Err(format!(
-                "{} not supported for --color. Use either \"auto\", \"always\" or \"never\"",
-                value
-            ))
-        }
-    }
+	fn from_arg_value(value: &str) -> Result<Self, String> {
+		if value == "auto" {
+			Ok(Self::Auto)
+		} else if value == "always" {
+			Ok(Self::Always)
+		} else if value == "never" {
+			Ok(Self::Never)
+		} else {
+			Err(format!(
+				"{} not supported for --color. Use either \"auto\", \"always\" or \"never\"",
+				value
+			))
+		}
+	}
 }
 
 /// Interact with Gitlab API
 #[derive(FromArgs)]
 pub struct Opts {
-    /// configuration file containing gitlab connection parameters
-    #[argh(option, short = 'c')]
-    pub config: Option<String>,
+	/// configuration file containing gitlab connection parameters
+	#[argh(option, short = 'c')]
+	pub config: Option<String>,
 
-    /// more detailed output
-    #[argh(switch, short = 'v')]
-    pub verbose: bool,
+	/// more detailed output
+	#[argh(switch, short = 'v')]
+	pub verbose: bool,
 
-    /// try to open links whenever possible
-    #[argh(switch, short = 'o')]
-    pub open: bool,
+	/// try to open links whenever possible
+	#[argh(switch, short = 'o')]
+	pub open: bool,
 
-    /// show urls
-    #[argh(switch, short = 'u')]
-    pub url: bool,
+	/// show urls
+	#[argh(switch, short = 'u')]
+	pub url: bool,
 
-    #[cfg(feature = "color")]
-    /// color mode: auto (default), always or never
-    #[argh(option, default = "ColorChoice::Auto")]
-    pub color: ColorChoice,
+	#[cfg(feature = "color")]
+	/// color mode: auto (default), always or never
+	#[argh(option, default = "ColorChoice::Auto")]
+	pub color: ColorChoice,
 
-    /// don't save oidc login to cache
-    #[argh(switch)]
-    pub no_cache: bool,
+	/// don't save oidc login to cache
+	#[argh(switch)]
+	pub no_cache: bool,
 
-    #[argh(subcommand)]
-    pub cmd: SubCommand,
+	#[argh(subcommand)]
+	pub cmd: SubCommand,
 }
 
 #[derive(FromArgs)]
 #[argh(subcommand)]
 pub enum SubCommand {
-    Tags(Tags),
-    Branches(Branches),
-    Build(Pipeline),
-    Archive(Archive),
-    Project(Project),
-    Token(Token),
-    Keys(Keys),
+	Tags(Tags),
+	Branches(Branches),
+	Pipeline(Pipeline),
+	Archive(Archive),
+	Project(Project),
+	Token(Token),
+	Keys(Keys),
 }
 
 /// Get and extract archives
 #[derive(FromArgs)]
 #[argh(subcommand, name = "extract")]
 pub struct ArchiveExtract {
-    /// the project to extract archive from
-    #[argh(option, short = 'p')]
-    pub project: Option<String>,
+	/// the project to extract archive from
+	#[argh(option, short = 'p')]
+	pub project: Option<String>,
 
-    /// batch mode: yaml file containing a list of project and tag to extract
-    #[argh(option, short = 'b')]
-    pub batch: Option<String>,
+	/// batch mode: yaml file containing a list of project and tag to extract
+	#[argh(option, short = 'b')]
+	pub batch: Option<String>,
 
-    /// strip first n path components of every entries in archive before extraction
-    #[argh(option, short = 's', default = "0")]
-    pub strip: usize,
+	/// strip first n path components of every entries in archive before extraction
+	#[argh(option, short = 's', default = "0")]
+	pub strip: usize,
 
-    /// rename first directory of the archive to the name of the project
-    #[argh(switch, short = 'r')]
-    pub rename: bool,
+	/// rename first directory of the archive to the name of the project
+	#[argh(switch, short = 'r')]
+	pub rename: bool,
 
-    /// destination directory
-    #[argh(option, short = 'd', default = "\"tmp\".to_string()")]
-    pub dir: String,
+	/// destination directory
+	#[argh(option, short = 'd', default = "\"tmp\".to_string()")]
+	pub dir: String,
 
-    /// skip extraction of projects if a directory with same name already exists. by default destination directory is removed before extraction
-    #[argh(switch, short = 'k')]
-    pub keep: bool,
+	/// skip extraction of projects if a directory with same name already exists. by default destination directory is removed before extraction
+	#[argh(switch, short = 'k')]
+	pub keep: bool,
 
-    /// update based on packages.lock file
-    #[argh(switch, short = 'u')]
-    pub update: bool,
+	/// update based on packages.lock file
+	#[argh(switch, short = 'u')]
+	pub update: bool,
 
-    /// reference (tag or branch) to extract an archive from
-    #[argh(positional)]
-    pub ref_: Option<String>,
+	/// reference (tag or branch) to extract an archive from
+	#[argh(positional)]
+	pub ref_: Option<String>,
 }
 
 #[derive(FromArgs)]
 #[argh(subcommand)]
 pub enum ArchiveCmd {
-    Extract(ArchiveExtract),
+	Extract(ArchiveExtract),
 }
 
 /// Handle project archives
 #[derive(FromArgs)]
 #[argh(subcommand, name = "archive")]
 pub struct Archive {
-    /// operate on archive
-    #[argh(subcommand)]
-    pub cmd: ArchiveCmd,
+	/// operate on archive
+	#[argh(subcommand)]
+	pub cmd: ArchiveCmd,
 }
 
 #[derive(FromArgs)]
 #[argh(subcommand)]
 pub enum TagsCmd {
-    Protect(TagsProtect),
-    Unprotect(TagsUnprotect),
+	Protect(TagsProtect),
+	Unprotect(TagsUnprotect),
 }
 
 /// Protect a project tag(s)
 #[derive(FromArgs)]
 #[argh(subcommand, name = "protect")]
 pub struct TagsProtect {
-    /// the project to protect tags on
-    #[argh(option, short = 'p')]
-    pub project: Option<String>,
+	/// the project to protect tags on
+	#[argh(option, short = 'p')]
+	pub project: Option<String>,
 
-    /// tag expression: '*' (default)
-    #[argh(positional, default = "\"*\".to_string()")]
-    pub tag: String,
+	/// tag expression: '*' (default)
+	#[argh(positional, default = "\"*\".to_string()")]
+	pub tag: String,
 }
 
 /// Unprotect a project tag(s)
 #[derive(FromArgs)]
 #[argh(subcommand, name = "unprotect")]
 pub struct TagsUnprotect {
-    /// the project to protect tags on
-    #[argh(option, short = 'p')]
-    pub project: Option<String>,
+	/// the project to protect tags on
+	#[argh(option, short = 'p')]
+	pub project: Option<String>,
 
-    /// tag expression: '*' (default)
-    #[argh(positional, default = "\"*\".to_string()")]
-    pub tag: String,
+	/// tag expression: '*' (default)
+	#[argh(positional, default = "\"*\".to_string()")]
+	pub tag: String,
 }
 
 /// Manage project tags
 #[derive(FromArgs)]
 #[argh(subcommand, name = "tags")]
 pub struct Tags {
-    /// operate on tags
-    #[argh(subcommand)]
-    pub cmd: TagsCmd,
+	/// operate on tags
+	#[argh(subcommand)]
+	pub cmd: TagsCmd,
 }
 
 /// Protect a project branche(s)
 #[derive(FromArgs)]
 #[argh(subcommand, name = "protect")]
 pub struct BranchesProtect {
-    /// the project to protect branches on
-    #[argh(option, short = 'p')]
-    pub project: Option<String>,
+	/// the project to protect branches on
+	#[argh(option, short = 'p')]
+	pub project: Option<String>,
 
-    /// allow force push
-    #[argh(switch, short = 'f')]
-    pub force_push: bool,
+	/// allow force push
+	#[argh(switch, short = 'f')]
+	pub force_push: bool,
 
-    /// branch expression
-    #[argh(positional)]
-    pub branch: Option<String>,
+	/// branch expression
+	#[argh(positional)]
+	pub branch: Option<String>,
 }
 
 /// Unprotect a project brnache(s)
 #[derive(FromArgs)]
 #[argh(subcommand, name = "unprotect")]
 pub struct BranchesUnprotect {
-    /// the project to protect tags from
-    #[argh(option, short = 'p')]
-    pub project: Option<String>,
+	/// the project to protect tags from
+	#[argh(option, short = 'p')]
+	pub project: Option<String>,
 
-    /// branch expression
-    #[argh(positional)]
-    pub branch: Option<String>,
+	/// branch expression
+	#[argh(positional)]
+	pub branch: Option<String>,
 }
 
 /// Manage project branches
 #[derive(FromArgs)]
 #[argh(subcommand, name = "branches")]
 pub struct Branches {
-    /// operate on branches
-    #[argh(subcommand)]
-    pub cmd: BranchesCmd,
+	/// operate on branches
+	#[argh(subcommand)]
+	pub cmd: BranchesCmd,
 }
 
 #[derive(FromArgs)]
 #[argh(subcommand)]
 pub enum BranchesCmd {
-    Protect(BranchesProtect),
-    Unprotect(BranchesUnprotect),
+	Protect(BranchesProtect),
+	Unprotect(BranchesUnprotect),
 }
 
 #[derive(FromArgs)]
 #[argh(subcommand)]
 pub enum PipelineCmd {
-    List(PipelineList),
-    Status(PipelineStatus),
-    Create(PipelineCreate),
-    Cancel(PipelineCancel),
-    Retry(PipelineRetry),
-    Log(PipelineLog),
+	List(PipelineList),
+	Status(PipelineStatus),
+	Create(PipelineCreate),
+	Cancel(PipelineCancel),
+	Retry(PipelineRetry),
+	Log(PipelineLog),
 }
 
 /// list pipelines
 #[derive(FromArgs)]
 #[argh(subcommand, name = "list")]
 pub struct PipelineList {
-    /// the project which owns the pipeline
-    #[argh(option, short = 'p')]
-    pub project: Option<String>,
+	/// the project which owns the pipeline
+	#[argh(option, short = 'p')]
+	pub project: Option<String>,
 
-    /// limit
-    #[argh(option, short = 'l', default = "10")]
-    pub limit: usize,
+	/// limit
+	#[argh(option, short = 'l', default = "10")]
+	pub limit: usize,
 
-    /// pipeline id
-    #[argh(positional)]
-    pub id: Option<u64>,
+	/// pipeline id
+	#[argh(positional)]
+	pub id: Option<u64>,
 }
 
 /// Get pipeline status
 #[derive(FromArgs)]
 #[argh(subcommand, name = "status")]
 pub struct PipelineStatus {
-    /// the project which owns the pipeline
-    #[argh(option, short = 'p')]
-    pub project: Option<String>,
+	/// the project which owns the pipeline
+	#[argh(option, short = 'p')]
+	pub project: Option<String>,
 
-    /// reference (tag or branch)
-    #[argh(option, short = 'r')]
-    pub ref_: Option<String>,
+	/// reference (tag or branch)
+	#[argh(option, short = 'r')]
+	pub ref_: Option<String>,
 
-    /// pipeline id
-    #[argh(positional)]
-    pub id: Option<u64>,
+	/// pipeline id
+	#[argh(positional)]
+	pub id: Option<u64>,
 }
 
 /// Create a new pipeline
 #[derive(FromArgs)]
 #[argh(subcommand, name = "create")]
 pub struct PipelineCreate {
-    /// the project which owns the pipeline
-    #[argh(option, short = 'p')]
-    pub project: Option<String>,
+	/// the project which owns the pipeline
+	#[argh(option, short = 'p')]
+	pub project: Option<String>,
 
-    /// reference (tag or branch)
-    #[argh(positional)]
-    pub ref_: Option<String>,
+	/// reference (tag or branch)
+	#[argh(positional)]
+	pub ref_: Option<String>,
 }
 
 /// Cancel a pipeline
 #[derive(FromArgs)]
 #[argh(subcommand, name = "cancel")]
 pub struct PipelineCancel {
-    /// the project which owns the pipeline
-    #[argh(option, short = 'p')]
-    pub project: Option<String>,
+	/// the project which owns the pipeline
+	#[argh(option, short = 'p')]
+	pub project: Option<String>,
 
-    /// reference (tag or branch)
-    #[argh(option, short = 'r')]
-    pub ref_: Option<String>,
+	/// reference (tag or branch)
+	#[argh(option, short = 'r')]
+	pub ref_: Option<String>,
 
-    /// pipeline id
-    #[argh(positional)]
-    pub id: Option<u64>,
+	/// pipeline id
+	#[argh(positional)]
+	pub id: Option<u64>,
 }
 
 /// Retry a pipeline
 #[derive(FromArgs)]
 #[argh(subcommand, name = "retry")]
 pub struct PipelineRetry {
-    /// the project which owns the pipeline
-    #[argh(option, short = 'p')]
-    pub project: Option<String>,
+	/// the project which owns the pipeline
+	#[argh(option, short = 'p')]
+	pub project: Option<String>,
 
-    /// reference (tag or branch)
-    #[argh(option, short = 'r')]
-    pub ref_: Option<String>,
+	/// reference (tag or branch)
+	#[argh(option, short = 'r')]
+	pub ref_: Option<String>,
 
-    /// pipeline id
-    #[argh(positional)]
-    pub id: Option<u64>,
+	/// pipeline id
+	#[argh(positional)]
+	pub id: Option<u64>,
 }
 
 /// Get log from a job
 #[derive(FromArgs)]
 #[argh(subcommand, name = "log")]
 pub struct PipelineLog {
-    /// the project which owns the pipeline
-    #[argh(option, short = 'p')]
-    pub project: Option<String>,
+	/// the project which owns the pipeline
+	#[argh(option, short = 'p')]
+	pub project: Option<String>,
 
-    /// reference (tag or branch)
-    #[argh(option, short = 'r')]
-    pub ref_: Option<String>,
+	/// reference (tag or branch)
+	#[argh(option, short = 'r')]
+	pub ref_: Option<String>,
 
-    /// a name that partially match the section name(s) to show in the log: step_script (default)
-    #[argh(option, short = 's', default = "\"step_script\".to_string()")]
-    pub section: String,
+	/// a name that partially match the section name(s) to show in the log: step_script (default)
+	#[argh(option, short = 's', default = "\"step_script\".to_string()")]
+	pub section: String,
 
-    /// the job id to extract the job log from
-    #[argh(option, short = 'j')]
-    pub job_id: Option<u64>,
+	/// the job id to extract the job log from
+	#[argh(option, short = 'j')]
+	pub job_id: Option<u64>,
 
-    /// show all sections
-    #[argh(switch, short = 'a')]
-    pub all: bool,
+	/// show all sections
+	#[argh(switch, short = 'a')]
+	pub all: bool,
 
-    /// show section headers
-    #[argh(switch, short = 'h')]
-    pub headers: bool,
+	/// show section headers
+	#[argh(switch, short = 'h')]
+	pub headers: bool,
 
-    /// show only section headers (all collapsed)
-    #[argh(switch, short = 'H')]
-    pub only_headers: bool,
+	/// show only section headers (all collapsed)
+	#[argh(switch, short = 'H')]
+	pub only_headers: bool,
 
-    /// the pipeline id
-    #[argh(positional)]
-    pub id: Option<u64>,
+	/// the pipeline id
+	#[argh(positional)]
+	pub id: Option<u64>,
 }
 
 /// Manage project pipeline
 #[derive(FromArgs)]
 #[argh(subcommand, name = "pipeline")]
 pub struct Pipeline {
-    #[argh(subcommand)]
-    /// operate on pipeline
-    pub cmd: PipelineCmd,
+	#[argh(subcommand)]
+	/// operate on pipeline
+	pub cmd: PipelineCmd,
 }
 
 /// copy of argh::from_env to insert command name and version in help text
 pub fn from_env<T: TopLevelCommand>() -> T {
-    let args: Vec<String> = std::env::args().collect();
-    let cmd = Path::new(&args[0])
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or(&args[0]);
-    let args_str: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-    T::from_args(&[cmd], &args_str[1..]).unwrap_or_else(|early_exit| {
-        println!("{} {}\n", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
-        println!("{}", early_exit.output);
-        std::process::exit(match early_exit.status {
-            Ok(()) => 0,
-            Err(()) => 1,
-        })
-    })
+	let args: Vec<String> = std::env::args().collect();
+	let cmd = Path::new(&args[0])
+		.file_name()
+		.and_then(|s| s.to_str())
+		.unwrap_or(&args[0]);
+	let args_str: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+	T::from_args(&[cmd], &args_str[1..]).unwrap_or_else(|early_exit| {
+		println!("{} {}\n", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
+		println!("{}", early_exit.output);
+		std::process::exit(match early_exit.status {
+			Ok(()) => 0,
+			Err(()) => 1,
+		})
+	})
 }
 
 /// Display information about project
 #[derive(FromArgs)]
 #[argh(subcommand, name = "project")]
 pub struct Project {
-    /// the project to protect tags from
-    #[argh(option, short = 'p')]
-    pub project: Option<String>,
+	/// the project to protect tags from
+	#[argh(option, short = 'p')]
+	pub project: Option<String>,
 
-    /// reference (tag or branch)
-    #[argh(positional)]
-    pub ref_: Option<String>,
+	/// reference (tag or branch)
+	#[argh(positional)]
+	pub ref_: Option<String>,
 }
 
 /// Manage user tokens
 #[derive(FromArgs)]
 #[argh(subcommand, name = "token")]
 pub struct Token {
-    #[argh(subcommand)]
-    /// operate on tokens
-    pub cmd: TokenCmd,
+	#[argh(subcommand)]
+	/// operate on tokens
+	pub cmd: TokenCmd,
 }
 
 #[derive(FromArgs)]
 #[argh(subcommand)]
 pub enum TokenCmd {
-    List(TokenList),
-    Create(TokenCreate),
-    Revoke(TokenRevoke),
-    Rotate(TokenRotate),
+	List(TokenList),
+	Create(TokenCreate),
+	Revoke(TokenRevoke),
+	Rotate(TokenRotate),
 }
 
 /// When we accet an id or name as parameter
 pub enum IdOrName {
-    Id(u64),
-    Name(String),
+	Id(u64),
+	Name(String),
 }
 
 impl FromStr for IdOrName {
-    type Err = Error;
+	type Err = Error;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(if let Ok(id) = s.parse::<u64>() {
-            Self::Id(id)
-        } else {
-            Self::Name(s.to_owned())
-        })
-    }
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		Ok(if let Ok(id) = s.parse::<u64>() {
+			Self::Id(id)
+		} else {
+			Self::Name(s.to_owned())
+		})
+	}
 }
 
 impl Display for IdOrName {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Id(id) => write!(f, "{}", id),
-            Self::Name(name) => write!(f, "{}", name),
-        }
-    }
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::Id(id) => write!(f, "{}", id),
+			Self::Name(name) => write!(f, "{}", name),
+		}
+	}
 }
 
 /// Create a new token
 #[derive(FromArgs)]
 #[argh(subcommand, name = "create")]
 pub struct TokenCreate {
-    /// the user which owns the token
-    #[argh(option, short = 'u')]
-    pub username: Option<String>,
+	/// the user which owns the token
+	#[argh(option, short = 'u')]
+	pub username: Option<String>,
 
-    /// the token scopes
-    #[argh(option, short = 's')]
-    pub scopes: Vec<PersonalAccessTokenScope>,
+	/// the token scopes
+	#[argh(option, short = 's')]
+	pub scopes: Vec<PersonalAccessTokenScope>,
 
-    /// the expiration date
-    #[argh(option, short = 'e')]
-    pub expires_at: Option<NaiveDate>,
+	/// the expiration date
+	#[argh(option, short = 'e')]
+	pub expires_at: Option<NaiveDate>,
 
-    /// revoke a token with same name if it exists
-    #[argh(switch, short = 'r')]
-    pub revoke: bool,
+	/// revoke a token with same name if it exists
+	#[argh(switch, short = 'r')]
+	pub revoke: bool,
 
-    /// the token name
-    #[argh(positional)]
-    pub name: String,
+	/// the token name
+	#[argh(positional)]
+	pub name: String,
 }
 
 /// Delete a token
 #[derive(FromArgs)]
 #[argh(subcommand, name = "revoke")]
 pub struct TokenRevoke {
-    /// the user which owns the token
-    #[argh(option, short = 'u')]
-    pub username: Option<String>,
+	/// the user which owns the token
+	#[argh(option, short = 'u')]
+	pub username: Option<String>,
 
-    /// the token name
-    #[argh(positional)]
-    pub name: IdOrName,
+	/// the token name
+	#[argh(positional)]
+	pub name: IdOrName,
 }
 
 /// List tokens
 #[derive(FromArgs)]
 #[argh(subcommand, name = "list")]
 pub struct TokenList {
-    /// the username to list the tokens that belong to (only for admin and by default current user)
-    #[argh(option, short = 'u')]
-    pub username: Option<String>,
+	/// the username to list the tokens that belong to (only for admin and by default current user)
+	#[argh(option, short = 'u')]
+	pub username: Option<String>,
 
-    /// list revoked tokens (implies --all)
-    #[argh(switch, short = 'r')]
-    pub revoked: bool,
+	/// list revoked tokens (implies --all)
+	#[argh(switch, short = 'r')]
+	pub revoked: bool,
 
-    /// list all tokens (only active ones per default)
-    #[argh(switch, short = 'a')]
-    pub all: bool,
+	/// list all tokens (only active ones per default)
+	#[argh(switch, short = 'a')]
+	pub all: bool,
 
-    /// the pattern of token to search names for
-    #[argh(positional)]
-    pub search: Option<String>,
+	/// the pattern of token to search names for
+	#[argh(positional)]
+	pub search: Option<String>,
 }
 
 /// Rotate token
 #[derive(FromArgs)]
 #[argh(subcommand, name = "rotate")]
 pub struct TokenRotate {
-    /// the user which owns the token
-    #[argh(option, short = 'u')]
-    pub username: Option<String>,
+	/// the user which owns the token
+	#[argh(option, short = 'u')]
+	pub username: Option<String>,
 
-    /// the expiration date
-    #[argh(option, short = 'e')]
-    pub expires_at: Option<NaiveDate>,
+	/// the expiration date
+	#[argh(option, short = 'e')]
+	pub expires_at: Option<NaiveDate>,
 
-    /// the token name
-    #[argh(positional)]
-    pub name: IdOrName,
+	/// the token name
+	#[argh(positional)]
+	pub name: IdOrName,
 }
 
 /// Manage user keys
 #[derive(FromArgs)]
 #[argh(subcommand, name = "keys")]
 pub struct Keys {
-    #[argh(subcommand)]
-    /// operate on keys
-    pub cmd: KeysCmd,
+	#[argh(subcommand)]
+	/// operate on keys
+	pub cmd: KeysCmd,
 }
 
 #[derive(FromArgs)]
 #[argh(subcommand)]
 pub enum KeysCmd {
-    List(ListKeys),
-    Add(AddKey),
-    Delete(DeleteKey),
+	List(ListKeys),
+	Add(AddKey),
+	Delete(DeleteKey),
 }
 
 /// Add a key
 #[derive(FromArgs)]
 #[argh(subcommand, name = "add")]
 pub struct AddKey {
-    /// title of the key
-    #[argh(option, short = 't')]
-    pub title: Option<String>,
+	/// title of the key
+	#[argh(option, short = 't')]
+	pub title: Option<String>,
 
-    /// expiration date of the key
-    #[argh(option, short = 'e')]
-    pub expires_at: Option<NaiveDate>,
+	/// expiration date of the key
+	#[argh(option, short = 'e')]
+	pub expires_at: Option<NaiveDate>,
 
-    /// usage type for the key
-    #[argh(option, short = 'u')]
-    pub usage_type: Option<KeyUsage>,
+	/// usage type for the key
+	#[argh(option, short = 'u')]
+	pub usage_type: Option<KeyUsage>,
 
-    /// overwrite a key with the same title
-    #[argh(switch, short = 'w')]
-    pub overwrite: bool,
+	/// overwrite a key with the same title
+	#[argh(switch, short = 'w')]
+	pub overwrite: bool,
 
-    /// key path
-    #[argh(positional)]
-    pub key: String,
+	/// key path
+	#[argh(positional)]
+	pub key: String,
 }
 
 /// List keys
 #[derive(FromArgs)]
 #[argh(subcommand, name = "list")]
 pub struct ListKeys {
-    /// username of user id to list the keys from
-    #[argh(option, short = 'u')]
-    pub user: Option<String>,
+	/// username of user id to list the keys from
+	#[argh(option, short = 'u')]
+	pub user: Option<String>,
 }
 
 /// Identification of a key for the delete subcommand
 pub enum KeyIdType {
-    Id(u64),
-    Name(String),
-    FingerPrint(Fingerprint),
+	Id(u64),
+	Name(String),
+	FingerPrint(Fingerprint),
 }
 
 impl Display for KeyIdType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            KeyIdType::Id(id) => write!(f, "Id({})", id),
-            KeyIdType::Name(name) => write!(f, "\"{}\"", name),
-            KeyIdType::FingerPrint(fingerprint) => write!(f, "{}", fingerprint),
-        }
-    }
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			KeyIdType::Id(id) => write!(f, "Id({})", id),
+			KeyIdType::Name(name) => write!(f, "\"{}\"", name),
+			KeyIdType::FingerPrint(fingerprint) => write!(f, "{}", fingerprint),
+		}
+	}
 }
 
 /// Try to parse KeyId by fingerprint, id(u64) or fallback to name
 impl FromStr for KeyIdType {
-    type Err = Error;
+	type Err = Error;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(if let Ok(fingerprint) = Fingerprint::from_str(s) {
-            Self::FingerPrint(fingerprint)
-        } else if let Ok(id) = s.parse::<u64>() {
-            Self::Id(id)
-        } else {
-            Self::Name(s.to_owned())
-        })
-    }
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		Ok(if let Ok(fingerprint) = Fingerprint::from_str(s) {
+			Self::FingerPrint(fingerprint)
+		} else if let Ok(id) = s.parse::<u64>() {
+			Self::Id(id)
+		} else {
+			Self::Name(s.to_owned())
+		})
+	}
 }
 
 /// Delete a key
 #[derive(FromArgs)]
 #[argh(subcommand, name = "delete")]
 pub struct DeleteKey {
-    /// the key id (db id, fingerprint or name) do delete
-    #[argh(positional)]
-    pub id: KeyIdType,
+	/// the key id (db id, fingerprint or name) do delete
+	#[argh(positional)]
+	pub id: KeyIdType,
 }
