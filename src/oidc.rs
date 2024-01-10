@@ -1,6 +1,6 @@
 use crate::{
 	args::Opts,
-	config::{Host, OAuth2, OAuth2Token},
+	config::{OAuth2, OAuth2Token},
 };
 
 use anyhow::{anyhow, bail, Context, Result};
@@ -88,13 +88,17 @@ impl HttpClient {
 
 // Try to login to gitlab using oidc
 // save the token to cache file and return the login information in case of success
-pub fn login(host: &Host, config: &OAuth2, opts: &Opts) -> Result<OAuth2Token> {
+pub fn login(
+	host: &String,
+	ca: &Option<String>,
+	config: &OAuth2,
+	opts: &Opts,
+) -> Result<OAuth2Token> {
 	let gitlab_client_id = ClientId::new(config.id.to_string());
 	let gitlab_client_secret = ClientSecret::new(config.secret.to_string());
 	let issuer_url =
-		IssuerUrl::new(format!("https://{}", host.name)).with_context(|| "Invalid issuer URL")?;
-
-	let http_client = HttpClient::try_new(&host.ca)?.http_client();
+		IssuerUrl::new(format!("https://{}", host)).with_context(|| "Invalid issuer URL")?;
+	let http_client = HttpClient::try_new(ca)?.http_client();
 
 	// Fetch GitLab's OpenID Connect discovery document.
 	let provider_metadata = CoreProviderMetadata::discover(&issuer_url, http_client)
@@ -213,7 +217,7 @@ pub fn login(host: &Host, config: &OAuth2, opts: &Opts) -> Result<OAuth2Token> {
 		bail!("CSRF test failed")
 	}
 
-	let http_client = HttpClient::try_new(&host.ca)?.http_client();
+	let http_client = HttpClient::try_new(ca)?.http_client();
 	// Exchange the code with a token.
 	let token_response = client
 		.exchange_code(code)

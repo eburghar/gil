@@ -960,7 +960,6 @@ dependencies = [
  "gitlab",
  "http 1.0.0",
  "indoc",
- "once_cell",
  "open",
  "openidconnect",
  "reqwest",

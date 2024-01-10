@@ -4,6 +4,7 @@ use anyhow::{anyhow, Context, Result};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::{
+	collections::HashMap,
 	env,
 	ffi::OsStr,
 	fs::{create_dir_all, File},
@@ -16,20 +17,26 @@ static ORG: &str = "ITSufficient";
 /// Root configuration file
 #[derive(Deserialize)]
 pub struct Config {
-	/// gitlab host
-	pub host: Host,
-	/// auth type
-	pub auth: AuthType,
+	pub hosts: HashMap<String, HostConfig>,
 	#[serde(skip)]
 	/// filename associated to the config file
 	pub name: String,
 }
 
-/// Host parameters
+/// Root configuration file
 #[derive(Deserialize)]
-pub struct Host {
-	pub name: String,
+pub struct HostConfig {
+	/// remote name
+	#[serde(default = "default_remote")]
+	pub remote: String,
+	/// host CA
 	pub ca: Option<String>,
+	/// auth type
+	pub auth: AuthType,
+}
+
+fn default_remote() -> String {
+	"origin".to_owned()
 }
 
 /// Authentication type supported
@@ -130,8 +137,13 @@ impl OAuth2Token {
 	}
 
 	/// Try to login
-	pub fn from_login(host: &Host, config: &OAuth2, opts: &Opts) -> Result<Self> {
-		login(host, config, opts)
+	pub fn from_login(
+		host: &String,
+		ca: &Option<String>,
+		config: &OAuth2,
+		opts: &Opts,
+	) -> Result<Self> {
+		login(host, ca, config, opts)
 	}
 
 	/// Try to save the cache information to file

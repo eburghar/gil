@@ -4,7 +4,7 @@ use crate::{
 		personal_access_tokens::{PersonalAccessTokenState, PersonalAccessTokens},
 		users::keys::ListKeys,
 	},
-	args::{self, ColorChoice, IdOrName, KeyIdType, Opts, PipelineLog, SubCommand},
+	args::{ColorChoice, IdOrName, KeyIdType, Opts, PipelineLog, SubCommand},
 	color::{Style, StyledStr},
 	config::{AuthType, Config, OAuth2Token},
 	fmt::{Colorizer, Stream},
@@ -28,8 +28,7 @@ use gitlab::{
 	},
 	types, Gitlab, StatusState,
 };
-use once_cell::sync::Lazy;
-use std::{fmt::Display, str::FromStr};
+use std::{fmt::Display, str::FromStr, sync::OnceLock};
 
 fn status_style(status: StatusState) -> Option<Style> {
 	Some(match status {
@@ -153,13 +152,7 @@ impl LogContext {
 }
 
 /// Static initializer for CliContext
-pub static CONTEXT: Lazy<CliContext> = Lazy::new(|| {
-	// parse command line arguments
-	let opts: Opts = args::from_env();
-	// construct context
-	// TODO: initialize in main to propagate error
-	CliContext::from_args(opts).unwrap()
-});
+pub static CONTEXT: OnceLock<CliContext> = OnceLock::new();
 
 /// Structure to pass around functions containing informations
 /// about execution context
@@ -168,12 +161,16 @@ pub struct CliContext {
 	pub cmd: SubCommand,
 	/// verbose mode
 	pub verbose: bool,
+	/// don't save oidc login to cache
+	pub no_cache: bool,
 	/// open links automatically
 	pub open: bool,
 	/// show urls
 	pub url: bool,
 	/// color mode
 	pub color: ColorChoice,
+	/// selected host
+	pub host: String,
 	/// the gitlab connexion
 	pub gitlab: Gitlab,
 	/// the configuration file
@@ -183,6 +180,10 @@ pub struct CliContext {
 }
 
 impl CliContext {
+	pub fn global() -> &'static CliContext {
+		CONTEXT.get().expect("Context not initialized")
+	}
+
 	/// Inializer from cli arguments
 	pub fn from_args(opts: Opts) -> Result<Self> {
 		// read yaml config
@@ -191,31 +192,37 @@ impl CliContext {
 		// get information from git
 		let repo = GitProject::from_currentdir();
 
-		// connect to gitlab
-		let gitlab = match &config.auth {
+		//
+		let (host, host_config) = repo
+			.as_ref()
+			.and_then(|repo| repo.host.as_ref())
+			.and_then(|host| config.hosts.get_key_value(host))
+			.ok_or_else(|| anyhow!("Can't find a suitable configuration for gitlab host"))?;
+
+		let gitlab = match &host_config.auth {
 			AuthType::OAuth2(oauth2) => {
 				// try to get the token from cache
 				if let Some(token) = OAuth2Token::from_cache() {
 					// check if we can login with that
-					if let Ok(gitlab) = Gitlab::with_oauth2(&config.host.name, token) {
+					if let Ok(gitlab) = Gitlab::with_oauth2(host, token) {
 						Ok(gitlab)
 					// otherwise try renew the token
 					} else {
-						println!("Trying to log in through https://{}", &config.host.name);
-						let token = OAuth2Token::from_login(&config.host, oauth2, &opts)?;
-						Gitlab::with_oauth2(&config.host.name, token)
+						println!("Trying to log in through https://{}", host);
+						let token = OAuth2Token::from_login(host, &host_config.ca, oauth2, &opts)?;
+						Gitlab::with_oauth2(host, token)
 					}
 				// otherwise try to login following the oauth2 flow
 				} else {
-					println!("Trying to log in through https://{}", &config.host.name);
-					let token = crate::oidc::login(&config.host, oauth2, &opts)?;
-					Gitlab::with_oauth2(&config.host.name, token)
+					println!("Trying to log in through https://{}", host);
+					let token = crate::oidc::login(host, &host_config.ca, oauth2, &opts)?;
+					Gitlab::with_oauth2(host, token)
 				}
 			}
 
-			AuthType::Token(token) => Gitlab::new(&config.host.name, token),
+			AuthType::Token(token) => Gitlab::new(host, token),
 		}
-		.with_context(|| format!("Can't connect to {}", &config.host.name))?;
+		.with_context(|| format!("Can't connect to {}", host))?;
 
 		#[cfg(feature = "color")]
 		let color = opts.color;
@@ -225,9 +232,11 @@ impl CliContext {
 		Ok(Self {
 			cmd: opts.cmd,
 			verbose: opts.verbose,
+			no_cache: opts.no_cache,
 			open: opts.open,
 			url: opts.url,
 			color,
+			host: host.to_owned(),
 			gitlab,
 			config,
 			repo,

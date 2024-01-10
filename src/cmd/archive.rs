@@ -1,7 +1,7 @@
 use crate::{
 	archive::Archive,
 	args::{self, ArchiveCmd},
-	context::CONTEXT,
+	context::CliContext,
 	lockfile::LockFile,
 };
 
@@ -80,18 +80,23 @@ pub fn cmd(args: &args::Archive) -> Result<()> {
 				BatchConfig::from_file(config)?
 			} else {
 				// in command line we extract only 1 project given from command line arguments
-				let project = CONTEXT.get_project(args.project.as_ref())?;
-				let ref_ = CONTEXT.check_ref(args.ref_.as_ref(), &project)?;
+				let project = CliContext::global().get_project(args.project.as_ref())?;
+				let ref_ = CliContext::global().check_ref(args.ref_.as_ref(), &project)?;
 				BatchConfig::singleton(project.path_with_namespace, ref_)
 			};
 
 			// create the dest directory
-			let dest_dir = get_or_create_dir(&args.dir, args.keep, args.update, CONTEXT.verbose)?;
+			let dest_dir = get_or_create_dir(
+				&args.dir,
+				args.keep,
+				args.update,
+				CliContext::global().verbose,
+			)?;
 			// open lock file (update mode)
 			let lock_name = if let Some(ref batch) = args.batch {
 				batch
 			} else {
-				&CONTEXT.config.name
+				&CliContext::global().host
 			};
 			let mut lock = LockFile::open(lock_name)?;
 
@@ -117,8 +122,8 @@ pub fn cmd(args: &args::Archive) -> Result<()> {
 					continue;
 				}
 
-				let prj = CONTEXT.get_project(Some(project))?;
-				let tag = CONTEXT.get_tag(Some(tag), &prj)?;
+				let prj = CliContext::global().get_project(Some(project))?;
+				let tag = CliContext::global().get_tag(Some(tag), &prj)?;
 				// get locked_commit or tag commit
 				let mut found = false;
 				let mut commit = match lock.get(project) {
@@ -170,7 +175,7 @@ pub fn cmd(args: &args::Archive) -> Result<()> {
 				// NOTE: api::raw returns a vec<u8>. It would be
 				// more memory efficient to return the rewest::Response to read
 				// from a stream instead
-				let targz = api::raw(endpoint).query(&CONTEXT.gitlab)?;
+				let targz = api::raw(endpoint).query(&CliContext::global().gitlab)?;
 
 				println!("Extracting {} {} ({})", &project, &tag.name, &commit[..8]);
 				// chain gzip reader and arquive reader. turn vec<u8> to a slice
@@ -210,7 +215,7 @@ pub fn cmd(args: &args::Archive) -> Result<()> {
 							if !entry_path.exists() {
 								match create_dir(&entry_path) {
 									Ok(()) => {
-										if CONTEXT.verbose {
+										if CliContext::global().verbose {
 											println!("	{}", &entry_path.to_string_lossy());
 										}
 									}
@@ -241,7 +246,7 @@ pub fn cmd(args: &args::Archive) -> Result<()> {
 							};
 							match io::copy(&mut entry, &mut file) {
 								Ok(size) => {
-									if CONTEXT.verbose {
+									if CliContext::global().verbose {
 										println!(
 											"  {} ({})",
 											&entry_path.to_string_lossy(),
