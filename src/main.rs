@@ -13,7 +13,7 @@ mod types;
 mod utils;
 
 use crate::{
-	args::{Opts, SubCommand},
+	args::SubCommand,
 	cmd::{
 		archive::cmd as archive, branches::cmd as branches, keys::cmd as keys,
 		pipeline::cmd as pipeline, project::cmd as project, tags::cmd as tags, token::cmd as token,
@@ -24,10 +24,8 @@ use crate::{
 use anyhow::{anyhow, Result};
 
 fn main() -> Result<()> {
-	let opts: Opts = args::from_env();
-	let context = CliContext::from_args(opts)?;
 	CONTEXT
-		.set(context)
+		.set(CliContext::from_args(args::from_env())?)
 		.map_err(|_| anyhow!("Can't set global context"))?;
 
 	match &CliContext::global().cmd {

@@ -236,7 +236,7 @@ pub fn login(
 	// save into cache
 	let cache = OAuth2Token::new(token_response.access_token().secret().to_owned());
 	if !opts.no_cache {
-		let _ = cache.save();
+		let _ = cache.save(host);
 	}
 
 	Ok(cache)

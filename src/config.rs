@@ -126,9 +126,9 @@ impl OAuth2Token {
 	}
 
 	/// Try silently read the cache file
-	pub fn from_cache() -> Option<Self> {
+	pub fn from_cache(host: &String) -> Option<Self> {
 		ProjectDirs::from("me", ORG, env!("CARGO_BIN_NAME"))
-			.map(|dir| dir.cache_dir().join("oidc_login"))
+			.map(|dir| dir.cache_dir().join(format!("{}_token", host)))
 			.and_then(|path| {
 				File::open(path)
 					.ok()
@@ -147,10 +147,10 @@ impl OAuth2Token {
 	}
 
 	/// Try to save the cache information to file
-	pub fn save(&self) -> Result<()> {
+	pub fn save(&self, host: &String) -> Result<()> {
 		ProjectDirs::from("me", ORG, env!("CARGO_BIN_NAME"))
 			.ok_or_else(|| anyhow!("Unable to find a suitable cache file path for oidc login"))
-			.map(|dir| dir.cache_dir().join("oidc_login"))
+			.map(|dir| dir.cache_dir().join(format!("{}_token", host)))
 			.and_then(|path| {
 				// create directories
 				if let Some(p) = path.parent() {

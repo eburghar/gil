@@ -192,17 +192,23 @@ impl CliContext {
 		// get information from git
 		let repo = GitProject::from_currentdir();
 
-		//
-		let (host, host_config) = repo
+		// get the auth configuration for the remote host
+		let host = repo
 			.as_ref()
 			.and_then(|repo| repo.host.as_ref())
-			.and_then(|host| config.hosts.get_key_value(host))
-			.ok_or_else(|| anyhow!("Can't find a suitable configuration for gitlab host"))?;
+			.ok_or_else(|| anyhow!("unable to find a remote host"))?;
+		let host_config = config.hosts.get(host).ok_or_else(|| {
+			anyhow!(
+				"Can't find a suitable configuration section for gitlab host {} in {}",
+				host,
+				&config.name
+			)
+		})?;
 
 		let gitlab = match &host_config.auth {
 			AuthType::OAuth2(oauth2) => {
 				// try to get the token from cache
-				if let Some(token) = OAuth2Token::from_cache() {
+				if let Some(token) = OAuth2Token::from_cache(host) {
 					// check if we can login with that
 					if let Ok(gitlab) = Gitlab::with_oauth2(host, token) {
 						Ok(gitlab)

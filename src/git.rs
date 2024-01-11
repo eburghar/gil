@@ -38,7 +38,7 @@ impl GitProject {
 			let host = remote
 				.as_ref()
 				.and_then(|remote| remote.url(Direction::Push))
-				.and_then(|url| url.host().map(|host| host.to_owned()));
+				.and_then(|url| url.host().map(str::to_owned));
 
 			// get the project name from the remote url
 			let name = remote
@@ -52,7 +52,7 @@ impl GitProject {
 						.or(Some(path))
 						.and_then(|path| path.strip_suffix(".git").or(Some(path)))
 				})
-				.map(|path| path.to_owned());
+				.map(str::to_owned);
 
 			// try to get the greatest semver tag that is pointing to the head commit
 			let head_commit = repo.head_commit().unwrap();
