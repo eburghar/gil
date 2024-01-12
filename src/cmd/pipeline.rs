@@ -1,6 +1,6 @@
 use crate::{
 	args::{self, PipelineCmd},
-	context::CONTEXT,
+	context::CliContext,
 };
 
 use anyhow::{Context, Result};
@@ -21,13 +21,13 @@ pub fn cmd(args: &args::Pipeline) -> Result<()> {
 	match &args.cmd {
 		PipelineCmd::List(cmd_args) => {
 			// get project from command line or context
-			let project = CONTEXT.get_project(cmd_args.project.as_ref())?;
+			let project = CliContext::global().get_project(cmd_args.project.as_ref())?;
 			let endpoint = pipelines::Pipelines::builder()
 				.project(project.path_with_namespace.to_owned())
 				.build()?;
 			let pipelines: Vec<types::PipelineBasic> =
 				api::paged(endpoint, Pagination::Limit(cmd_args.limit))
-					.query(&CONTEXT.gitlab)
+					.query(&CliContext::global().gitlab)
 					.with_context(|| {
 						format!(
 							"Failed to list pipelines for {}",
@@ -35,9 +35,9 @@ pub fn cmd(args: &args::Pipeline) -> Result<()> {
 						)
 					})?;
 
-			CONTEXT.print_pipelines(&pipelines, &project)?;
+			CliContext::global().print_pipelines(&pipelines, &project)?;
 
-			if CONTEXT.open {
+			if CliContext::global().open {
 				let _ = open::that(format!("{}/-/pipelines", &project.web_url));
 			}
 			Ok(())
@@ -45,27 +45,28 @@ pub fn cmd(args: &args::Pipeline) -> Result<()> {
 
 		PipelineCmd::Create(cmd_args) => {
 			// get project from command line or context
-			let project = CONTEXT.get_project(cmd_args.project.as_ref())?;
+			let project = CliContext::global().get_project(cmd_args.project.as_ref())?;
 			// get a reference (a tag or a branch)
-			let ref_ = CONTEXT.check_ref(cmd_args.ref_.as_ref(), &project)?;
+			let ref_ = CliContext::global().check_ref(cmd_args.ref_.as_ref(), &project)?;
 
 			let endpoint = pipelines::CreatePipeline::builder()
 				.project(project.path_with_namespace.to_owned())
 				.ref_(&ref_)
 				.build()?;
-			let pipeline: types::PipelineBasic =
-				endpoint.query(&CONTEXT.gitlab).with_context(|| {
+			let pipeline: types::PipelineBasic = endpoint
+				.query(&CliContext::global().gitlab)
+				.with_context(|| {
 					format!(
 						"Failed to create pipeline for {} @ {}",
 						&project.path_with_namespace, &ref_
 					)
 				})?;
 
-			CONTEXT.print_pipeline(&pipeline, &project)?;
-			let jobs = CONTEXT.get_jobs(&project, pipeline.id.value())?;
-			CONTEXT.print_jobs(&jobs)?;
+			CliContext::global().print_pipeline(&pipeline, &project)?;
+			let jobs = CliContext::global().get_jobs(&project, pipeline.id.value())?;
+			CliContext::global().print_jobs(&jobs)?;
 
-			if CONTEXT.open {
+			if CliContext::global().open {
 				let _ = open::that(pipeline.web_url);
 			}
 			Ok(())
@@ -73,16 +74,16 @@ pub fn cmd(args: &args::Pipeline) -> Result<()> {
 
 		PipelineCmd::Status(cmd_args) => {
 			// get project from command line or context
-			let project = CONTEXT.get_project(cmd_args.project.as_ref())?;
+			let project = CliContext::global().get_project(cmd_args.project.as_ref())?;
 			// get a reference (a tag or a branch)
-			let ref_ = CONTEXT.check_ref(cmd_args.ref_.as_ref(), &project)?;
-			let pipeline = CONTEXT.get_pipeline(cmd_args.id, &project, &ref_)?;
+			let ref_ = CliContext::global().check_ref(cmd_args.ref_.as_ref(), &project)?;
+			let pipeline = CliContext::global().get_pipeline(cmd_args.id, &project, &ref_)?;
 
-			CONTEXT.print_pipeline(&pipeline, &project)?;
-			let jobs = CONTEXT.get_jobs(&project, pipeline.id.value())?;
-			CONTEXT.print_jobs(&jobs)?;
+			CliContext::global().print_pipeline(&pipeline, &project)?;
+			let jobs = CliContext::global().get_jobs(&project, pipeline.id.value())?;
+			CliContext::global().print_jobs(&jobs)?;
 
-			if CONTEXT.open {
+			if CliContext::global().open {
 				let _ = open::that(pipeline.web_url);
 			}
 			Ok(())
@@ -90,26 +91,27 @@ pub fn cmd(args: &args::Pipeline) -> Result<()> {
 
 		PipelineCmd::Cancel(cmd_args) => {
 			// get project from command line or context
-			let project = CONTEXT.get_project(cmd_args.project.as_ref())?;
+			let project = CliContext::global().get_project(cmd_args.project.as_ref())?;
 			// get a reference (a tag or a branch)
-			let ref_ = CONTEXT.check_ref(cmd_args.ref_.as_ref(), &project)?;
-			let pipeline = CONTEXT.get_pipeline(cmd_args.id, &project, &ref_)?;
+			let ref_ = CliContext::global().check_ref(cmd_args.ref_.as_ref(), &project)?;
+			let pipeline = CliContext::global().get_pipeline(cmd_args.id, &project, &ref_)?;
 
 			let endpoint = pipelines::CancelPipeline::builder()
 				.project(project.path_with_namespace.to_owned())
 				.pipeline(pipeline.id.value())
 				.build()?;
-			let pipeline: types::PipelineBasic =
-				endpoint.query(&CONTEXT.gitlab).with_context(|| {
+			let pipeline: types::PipelineBasic = endpoint
+				.query(&CliContext::global().gitlab)
+				.with_context(|| {
 					format!("Failed to cancel pipeline {}", &pipeline.id.to_string())
 				})?;
 
-			CONTEXT.print_pipeline(&pipeline, &project)?;
+			CliContext::global().print_pipeline(&pipeline, &project)?;
 			// list jobs after cancel
-			let jobs = CONTEXT.get_jobs(&project, pipeline.id.value())?;
-			CONTEXT.print_jobs(&jobs)?;
+			let jobs = CliContext::global().get_jobs(&project, pipeline.id.value())?;
+			CliContext::global().print_jobs(&jobs)?;
 
-			if CONTEXT.open {
+			if CliContext::global().open {
 				let _ = open::that(pipeline.web_url);
 			}
 			Ok(())
@@ -117,25 +119,25 @@ pub fn cmd(args: &args::Pipeline) -> Result<()> {
 
 		PipelineCmd::Retry(cmd_args) => {
 			// get project from command line or context
-			let project = CONTEXT.get_project(cmd_args.project.as_ref())?;
+			let project = CliContext::global().get_project(cmd_args.project.as_ref())?;
 			// get a reference (a tag or a branch)
-			let ref_ = CONTEXT.check_ref(cmd_args.ref_.as_ref(), &project)?;
-			let pipeline = CONTEXT.get_pipeline(cmd_args.id, &project, &ref_)?;
+			let ref_ = CliContext::global().check_ref(cmd_args.ref_.as_ref(), &project)?;
+			let pipeline = CliContext::global().get_pipeline(cmd_args.id, &project, &ref_)?;
 
 			let endpoint = pipelines::RetryPipeline::builder()
 				.project(project.path_with_namespace.to_owned())
 				.pipeline(pipeline.id.value())
 				.build()?;
 			let pipeline: types::PipelineBasic = endpoint
-				.query(&CONTEXT.gitlab)
+				.query(&CliContext::global().gitlab)
 				.with_context(|| format!("Failed to retry pipeline {}", pipeline.id))?;
 
-			CONTEXT.print_pipeline(&pipeline, &project)?;
+			CliContext::global().print_pipeline(&pipeline, &project)?;
 			// list jobs after retry
-			let jobs = CONTEXT.get_jobs(&project, pipeline.id.value())?;
-			CONTEXT.print_jobs(&jobs)?;
+			let jobs = CliContext::global().get_jobs(&project, pipeline.id.value())?;
+			CliContext::global().print_jobs(&jobs)?;
 
-			if CONTEXT.open {
+			if CliContext::global().open {
 				let _ = open::that(pipeline.web_url);
 			}
 			Ok(())
@@ -143,9 +145,9 @@ pub fn cmd(args: &args::Pipeline) -> Result<()> {
 
 		PipelineCmd::Log(cmd_args) => {
 			// get project from command line or context
-			let project = CONTEXT.get_project(cmd_args.project.as_ref())?;
+			let project = CliContext::global().get_project(cmd_args.project.as_ref())?;
 			// get a reference (a tag or a branch)
-			let ref_ = CONTEXT.check_ref(cmd_args.ref_.as_ref(), &project)?;
+			let ref_ = CliContext::global().check_ref(cmd_args.ref_.as_ref(), &project)?;
 
 			let scopes = [
 				JobScope::Running,
@@ -153,7 +155,7 @@ pub fn cmd(args: &args::Pipeline) -> Result<()> {
 				JobScope::Success,
 				JobScope::Canceled,
 			];
-			let job = CONTEXT.get_job(
+			let job = CliContext::global().get_job(
 				cmd_args.job_id,
 				cmd_args.id,
 				&project,
@@ -165,9 +167,9 @@ pub fn cmd(args: &args::Pipeline) -> Result<()> {
 				.job(job.id.value())
 				.build()?;
 
-			let log = api::raw(endpoint).query(&CONTEXT.gitlab)?;
-			CONTEXT.print_log(&log, &job, cmd_args)?;
-			if CONTEXT.open {
+			let log = api::raw(endpoint).query(&CliContext::global().gitlab)?;
+			CliContext::global().print_log(&log, &job, cmd_args)?;
+			if CliContext::global().open {
 				let _ = open::that(job.web_url);
 			}
 			Ok(())

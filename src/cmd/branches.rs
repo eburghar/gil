@@ -1,6 +1,6 @@
 use crate::{
 	args::{self, BranchesCmd},
-	context::CONTEXT,
+	context::CliContext,
 };
 
 use anyhow::{Context, Result};
@@ -22,13 +22,14 @@ struct Tag {
 pub fn cmd(args: &args::Branches) -> Result<()> {
 	match &args.cmd {
 		BranchesCmd::Unprotect(args) => {
-			let project = CONTEXT.get_project(args.project.as_ref())?;
-			let branch = CONTEXT.get_branchexp(args.branch.as_ref())?;
+			let project = CliContext::global().get_project(args.project.as_ref())?;
+			let branch = CliContext::global().get_branchexp(args.branch.as_ref())?;
 
 			let endpoint = ProtectedBranches::builder()
 				.project(project.path_with_namespace.to_owned())
 				.build()?;
-			let tags: Vec<types::ProtectedRepoBranch> = endpoint.query(&CONTEXT.gitlab)?;
+			let tags: Vec<types::ProtectedRepoBranch> =
+				endpoint.query(&CliContext::global().gitlab)?;
 
 			if !tags.iter().any(|b| &b.name == branch) {
 				println!(
@@ -40,14 +41,14 @@ pub fn cmd(args: &args::Branches) -> Result<()> {
 					.project(project.path_with_namespace.to_owned())
 					.name(branch)
 					.build()?;
-				api::ignore(endpoint).query(&CONTEXT.gitlab)?;
+				api::ignore(endpoint).query(&CliContext::global().gitlab)?;
 				println!(
 					"branch '{}' protection has been removed on project {}",
 					&branch, &project.path_with_namespace
 				);
 			}
 
-			if CONTEXT.open {
+			if CliContext::global().open {
 				let _ = open::that(format!("{}/-/settings/repository", project.web_url));
 			}
 
@@ -55,13 +56,14 @@ pub fn cmd(args: &args::Branches) -> Result<()> {
 		}
 
 		BranchesCmd::Protect(args) => {
-			let project = CONTEXT.get_project(args.project.as_ref())?;
-			let branch = CONTEXT.get_branchexp(args.branch.as_ref())?;
+			let project = CliContext::global().get_project(args.project.as_ref())?;
+			let branch = CliContext::global().get_branchexp(args.branch.as_ref())?;
 
 			let endpoint = ProtectedBranches::builder()
 				.project(project.path_with_namespace.to_owned())
 				.build()?;
-			let tags: Vec<types::ProtectedRepoBranch> = endpoint.query(&CONTEXT.gitlab)?;
+			let tags: Vec<types::ProtectedRepoBranch> =
+				endpoint.query(&CliContext::global().gitlab)?;
 
 			// unprotect if found
 			if tags.iter().any(|b| &b.name == branch) {
@@ -69,7 +71,7 @@ pub fn cmd(args: &args::Branches) -> Result<()> {
 					.project(project.path_with_namespace.to_owned())
 					.name(branch)
 					.build()?;
-				api::ignore(endpoint).query(&CONTEXT.gitlab)?;
+				api::ignore(endpoint).query(&CliContext::global().gitlab)?;
 			}
 			// an protect again (parameters may have changed)
 			let endpoint = ProtectBranch::builder()
@@ -77,18 +79,20 @@ pub fn cmd(args: &args::Branches) -> Result<()> {
 				.name(branch)
 				.allow_force_push(args.force_push)
 				.build()?;
-			let tag: Tag = endpoint.query(&CONTEXT.gitlab).with_context(|| {
-				format!(
-					"Failed to protect branch '{}' on project {}",
-					&branch, &project.path_with_namespace
-				)
-			})?;
+			let tag: Tag = endpoint
+				.query(&CliContext::global().gitlab)
+				.with_context(|| {
+					format!(
+						"Failed to protect branch '{}' on project {}",
+						&branch, &project.path_with_namespace
+					)
+				})?;
 			println!(
 				"branch '{}' is protected on project {}",
 				tag.name, &project.path_with_namespace
 			);
 
-			if CONTEXT.open {
+			if CliContext::global().open {
 				let _ = open::that(format!("{}/-/settings/repository", project.web_url));
 			}
 

@@ -1,14 +1,14 @@
-use crate::{args, context::CONTEXT};
+use crate::{args, context::CliContext};
 
 use anyhow::Result;
 
 pub fn cmd(args: &args::Project) -> Result<()> {
-	let project = CONTEXT.get_project(args.project.as_ref())?;
+	let project = CliContext::global().get_project(args.project.as_ref())?;
 	// get a reference (a tag or a branch)
-	let ref_ = CONTEXT.get_ref(args.ref_.as_ref(), &project)?;
+	let ref_ = CliContext::global().get_ref(args.ref_.as_ref(), &project)?;
 
-	CONTEXT.print_project(&project, &ref_)?;
-	if CONTEXT.open {
+	CliContext::global().print_project(&project, &ref_)?;
+	if CliContext::global().open {
 		let _ = open::that(format!("{}/-/tree/{}", &project.web_url, &ref_));
 	}
 	Ok(())
