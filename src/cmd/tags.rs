@@ -1,6 +1,6 @@
 use crate::{
 	args::{self, TagsCmd},
-	context::CONTEXT,
+	context::CliContext,
 };
 
 use anyhow::{Context, Result};
@@ -22,13 +22,13 @@ struct Tag {
 pub fn cmd(args: &args::Tags) -> Result<()> {
 	match &args.cmd {
 		TagsCmd::Unprotect(args) => {
-			let project = CONTEXT.get_project(args.project.as_ref())?;
-			let tag = CONTEXT.get_tagexp(Some(&args.tag))?;
+			let project = CliContext::global().get_project(args.project.as_ref())?;
+			let tag = CliContext::global().get_tagexp(Some(&args.tag))?;
 
 			let endpoint = ProtectedTags::builder()
 				.project(project.path_with_namespace.to_owned())
 				.build()?;
-			let tags: Vec<types::ProtectedTag> = endpoint.query(&CONTEXT.gitlab)?;
+			let tags: Vec<types::ProtectedTag> = endpoint.query(&CliContext::global().gitlab)?;
 
 			if !tags.iter().any(|t| &t.name == tag) {
 				println!(
@@ -40,14 +40,14 @@ pub fn cmd(args: &args::Tags) -> Result<()> {
 					.project(project.path_with_namespace.to_owned())
 					.name(tag)
 					.build()?;
-				api::ignore(endpoint).query(&CONTEXT.gitlab)?;
+				api::ignore(endpoint).query(&CliContext::global().gitlab)?;
 				println!(
 					"tag '{}' protection has been removed on project {}",
 					&tag, &project.path_with_namespace
 				);
 			}
 
-			if CONTEXT.open {
+			if CliContext::global().open {
 				let _ = open::that(format!("{}/-/settings/repository", project.web_url));
 			}
 
@@ -55,13 +55,13 @@ pub fn cmd(args: &args::Tags) -> Result<()> {
 		}
 
 		TagsCmd::Protect(args) => {
-			let project = CONTEXT.get_project(args.project.as_ref())?;
-			let tag = CONTEXT.get_tagexp(Some(&args.tag))?;
+			let project = CliContext::global().get_project(args.project.as_ref())?;
+			let tag = CliContext::global().get_tagexp(Some(&args.tag))?;
 
 			let endpoint = ProtectedTags::builder()
 				.project(project.path_with_namespace.to_owned())
 				.build()?;
-			let tags: Vec<types::ProtectedTag> = endpoint.query(&CONTEXT.gitlab)?;
+			let tags: Vec<types::ProtectedTag> = endpoint.query(&CliContext::global().gitlab)?;
 
 			if tags.iter().any(|t| &t.name == tag) {
 				println!(
@@ -73,19 +73,21 @@ pub fn cmd(args: &args::Tags) -> Result<()> {
 					.project(project.path_with_namespace.to_owned())
 					.name(tag)
 					.build()?;
-				let tag: Tag = endpoint.query(&CONTEXT.gitlab).with_context(|| {
-					format!(
-						"Failed to protect tag '{}' on project {}",
-						&tag, &project.path_with_namespace
-					)
-				})?;
+				let tag: Tag = endpoint
+					.query(&CliContext::global().gitlab)
+					.with_context(|| {
+						format!(
+							"Failed to protect tag '{}' on project {}",
+							&tag, &project.path_with_namespace
+						)
+					})?;
 				println!(
 					"tag '{}' is protected on project {}",
 					tag.name, &project.path_with_namespace
 				);
 			}
 
-			if CONTEXT.open {
+			if CliContext::global().open {
 				let _ = open::that(format!("{}/-/settings/repository", project.web_url));
 			}
 

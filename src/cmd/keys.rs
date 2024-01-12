@@ -1,7 +1,7 @@
 use crate::{
 	api::users::keys::{AddKey, DeleteKey, ListKeys},
 	args::{self, KeyIdType, KeysCmd},
-	context::CONTEXT,
+	context::CliContext,
 	types::SshKey,
 };
 
@@ -23,16 +23,17 @@ pub fn cmd(args: &args::Keys) -> Result<()> {
 
 			// try to delete existing key with same fingerprint on overwrite mode
 			if args.overwrite {
-				if let Ok(key) = CONTEXT.get_key(&KeyIdType::FingerPrint(fingerprint)) {
+				if let Ok(key) = CliContext::global().get_key(&KeyIdType::FingerPrint(fingerprint))
+				{
 					let endpoint = DeleteKey::builder().key_id(key.id.value()).build()?;
-					api::ignore(endpoint).query(&CONTEXT.gitlab)?;
+					api::ignore(endpoint).query(&CliContext::global().gitlab)?;
 				}
 			}
 
 			// try to add the key
 			let endpoint = AddKey::builder().key(&key).title(title).build()?;
 			api::ignore(endpoint)
-				.query(&CONTEXT.gitlab)
+				.query(&CliContext::global().gitlab)
 				.with_context(|| format!("Failed to add ssh key {}", &args.key))?;
 			println!(
 				"Key {} has been {}",
@@ -44,15 +45,17 @@ pub fn cmd(args: &args::Keys) -> Result<()> {
 				}
 			);
 
-			if CONTEXT.open {
-				let url = if let Ok(key) = CONTEXT.get_key(&KeyIdType::FingerPrint(fingerprint)) {
+			if CliContext::global().open {
+				let url = if let Ok(key) =
+					CliContext::global().get_key(&KeyIdType::FingerPrint(fingerprint))
+				{
 					format!(
 						"https://{}/-/profile/keys/{}",
-						CONTEXT.config.host.name,
+						CliContext::global().repo.host,
 						key.id.value()
 					)
 				} else {
-					format!("https://{}/-/profile/keys", CONTEXT.config.host.name)
+					format!("https://{}/-/profile/keys", CliContext::global().repo.host)
 				};
 				let _ = open::that(url);
 			}
@@ -61,25 +64,25 @@ pub fn cmd(args: &args::Keys) -> Result<()> {
 		}
 
 		KeysCmd::List(args) => {
-			let user = CONTEXT.get_user(args.user.as_ref())?;
+			let user = CliContext::global().get_user(args.user.as_ref())?;
 			let endpoint = ListKeys::builder().user(&user.username).build()?;
-			let keys: Vec<SshKey> = endpoint.query(&CONTEXT.gitlab)?;
+			let keys: Vec<SshKey> = endpoint.query(&CliContext::global().gitlab)?;
 
-			if CONTEXT.open {
+			if CliContext::global().open {
 				let _ = open::that(format!(
 					"https://{}/-/profile/keys",
-					CONTEXT.config.host.name
+					CliContext::global().repo.host
 				));
 			}
 
-			CONTEXT.print_keys(&keys, &user)
+			CliContext::global().print_keys(&keys, &user)
 		}
 
 		KeysCmd::Delete(args) => {
-			let key = CONTEXT.get_key(&args.id)?;
+			let key = CliContext::global().get_key(&args.id)?;
 			let endpoint = DeleteKey::builder().key_id(key.id.value()).build()?;
 			api::ignore(endpoint)
-				.query(&CONTEXT.gitlab)
+				.query(&CliContext::global().gitlab)
 				.with_context(|| format!("Failed to delete key {}", args.id))?;
 			if let KeyIdType::Id(id) = args.id {
 				println!("Key {} deleted", id);
@@ -87,10 +90,10 @@ pub fn cmd(args: &args::Keys) -> Result<()> {
 				println!("Key {}({}) deleted", args.id, key.id.value());
 			}
 
-			if CONTEXT.open {
+			if CliContext::global().open {
 				let _ = open::that(format!(
 					"https://{}/-/profile/keys",
-					CONTEXT.config.host.name
+					CliContext::global().repo.host
 				));
 			}
 

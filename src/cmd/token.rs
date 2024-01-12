@@ -8,7 +8,7 @@ use crate::{
 	},
 	args,
 	args::{IdOrName, TokenCmd},
-	context::CONTEXT,
+	context::CliContext,
 	types::token::PersonalAccessToken,
 };
 
@@ -20,12 +20,14 @@ pub fn cmd(args: &args::Token) -> Result<()> {
 		TokenCmd::Create(args) => {
 			// try to revoke a token with the the same name
 			if args.revoke {
-				if let Ok(token) = CONTEXT.get_token(&IdOrName::Name(args.name.to_owned())) {
+				if let Ok(token) =
+					CliContext::global().get_token(&IdOrName::Name(args.name.to_owned()))
+				{
 					let endpoint = RevokePersonalAccessToken::builder()
 						.token_id(token.id)
 						.build()?;
 					api::ignore(endpoint)
-						.query(&CONTEXT.gitlab)
+						.query(&CliContext::global().gitlab)
 						.with_context(|| {
 							format!("Failed to revoke existing token {}", args.name)
 						})?;
@@ -33,14 +35,14 @@ pub fn cmd(args: &args::Token) -> Result<()> {
 			}
 
 			// try to create the requested token
-			let user = CONTEXT.get_user(args.username.as_ref())?;
+			let user = CliContext::global().get_user(args.username.as_ref())?;
 			let endpoint = CreatePersonalAccessToken::builder()
 				.user_id(user.id.value())
 				.name(&args.name)
 				.expires_at(args.expires_at)
 				.scopes(args.scopes.iter())
 				.build()?;
-			let token: PersonalAccessToken = endpoint.query(&CONTEXT.gitlab)?;
+			let token: PersonalAccessToken = endpoint.query(&CliContext::global().gitlab)?;
 			if let Some(token) = token.token {
 				println!("{}", token);
 			} else {
@@ -49,16 +51,16 @@ pub fn cmd(args: &args::Token) -> Result<()> {
 		}
 
 		TokenCmd::Revoke(args) => {
-			let token = CONTEXT.get_token(&args.name)?;
+			let token = CliContext::global().get_token(&args.name)?;
 			let endpoint = RevokePersonalAccessToken::builder()
 				.token_id(token.id)
 				.build()?;
-			api::ignore(endpoint).query(&CONTEXT.gitlab)?;
+			api::ignore(endpoint).query(&CliContext::global().gitlab)?;
 			println!("token {}({}) has been revoked", args.name, token.id);
 		}
 
 		TokenCmd::List(args) => {
-			let user = CONTEXT.get_user(args.username.as_ref())?;
+			let user = CliContext::global().get_user(args.username.as_ref())?;
 			let mut builder = PersonalAccessTokens::builder();
 			builder
 				.user_id(user.id.value())
@@ -70,21 +72,21 @@ pub fn cmd(args: &args::Token) -> Result<()> {
 				builder.state(Some(PersonalAccessTokenState::Active));
 			}
 			let endpoint = builder.build()?;
-			let tokens: Vec<PersonalAccessToken> = endpoint.query(&CONTEXT.gitlab)?;
+			let tokens: Vec<PersonalAccessToken> = endpoint.query(&CliContext::global().gitlab)?;
 			if tokens.is_empty() {
 				bail!("No token found matching criterias");
 			} else {
-				CONTEXT.print_tokens(&tokens, &user)?;
+				CliContext::global().print_tokens(&tokens, &user)?;
 			}
 		}
 
 		TokenCmd::Rotate(args) => {
-			let token = CONTEXT.get_token(&args.name)?;
+			let token = CliContext::global().get_token(&args.name)?;
 			let endpoint = RotatePersonalAccessToken::builder()
 				.token_id(token.id)
 				.expires_at(args.expires_at)
 				.build()?;
-			let token: PersonalAccessToken = endpoint.query(&CONTEXT.gitlab)?;
+			let token: PersonalAccessToken = endpoint.query(&CliContext::global().gitlab)?;
 			if let Some(token) = token.token {
 				println!("{}", token);
 			} else {
@@ -93,10 +95,10 @@ pub fn cmd(args: &args::Token) -> Result<()> {
 		}
 	}
 
-	if CONTEXT.open {
+	if CliContext::global().open {
 		let _ = open::that(format!(
 			"https://{}/-/profile/personal_access_tokens",
-			CONTEXT.config.host.name
+			CliContext::global().repo.host
 		));
 	}
 
