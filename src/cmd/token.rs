@@ -98,7 +98,7 @@ pub fn cmd(args: &args::Token) -> Result<()> {
 	if CliContext::global().open {
 		let _ = open::that(format!(
 			"https://{}/-/profile/personal_access_tokens",
-			CliContext::global().host
+			CliContext::global().repo.host
 		));
 	}
 

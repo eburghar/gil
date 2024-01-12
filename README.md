@@ -40,7 +40,7 @@ It works on Windows.
 ## General use
 
 ```
-gil 0.6.2
+gil 0.7.0
 
 Usage: gil [-c <config>] [-v] [-o] [-u] [--color <color>] [--no-cache] <command> [<args>]
 
@@ -72,8 +72,7 @@ first locating the git root directory, starting from the working directory and c
 directories if necessary :
 
 1. The name of the GitLab project to work with is derived from a remote URL it finds in the git
-   configuration. It uses the URL of the GitLab instance indicated in its configuration file
-   for that.
+   configuration. The authentication configuration is searched in the configuration file.
 
 2. It then tries to find a remote reference to apply the operations upon using the following
    heuristic :
@@ -219,7 +218,7 @@ gil archive extract -r -p group/project 0.5.0
 ## Archive command
 
 ```
-gil 0.6.2
+gil 0.7.0
 
 Usage: gil archive extract [<ref_>] [-p <project>] [-b <batch>] [-s <strip>] [-r] [-d <dir>] [-k] [-u]
 
@@ -261,7 +260,7 @@ re-extract archives.
 ## Tags command
 
 ```
-gil 0.6.2
+gil 0.7.0
 
 Usage: gil tags <command> [<args>]
 
@@ -280,7 +279,7 @@ Allow switching on and off tags protection. Without argument, it will (un)protec
 ## Pipeline command
 
 ```
-gil 0.6.2
+gil 0.7.0
 
 Usage: gil pipeline <command> [<args>]
 
@@ -299,7 +298,7 @@ Commands:
 ### log sub command
 
 ```
-gil 0.6.2
+gil 0.7.0
 
 Usage: gil pipeline log [<id>] [-p <project>] [-r <ref>] [-s <section>] [-j <job-id>] [-a] [-h] [-H]
 
@@ -350,7 +349,7 @@ Depending on the `color` mode, all colors (ANSI codes) may be striped out from t
 A generic command used to automatically provision tokens in script.
 
 ```
-gil 0.6.2
+gil 0.7.0
 
 Usage: gil token <command> [<args>]
 
@@ -371,7 +370,7 @@ Commands:
 A generic command used to automatically provision ssh keys in script.
 
 ```
-gil 0.6.2
+gil 0.7.0
 
 Usage: gil keys <command> [<args>]
 
@@ -401,10 +400,10 @@ The configuration is searched from these places :
 For access token authentication, the configuration file looks like :
 
 ```yaml
-host:
-  name: git.mydomain.com
-  ca: ca.crt
-token: xxxxxxxxxx
+hosts:
+  git.mydomain.com:
+    ca: ca.crt
+    token: xxxxxxxxxx
 ```
 
 The token is a regular GitLab access token with API privilege.
@@ -412,13 +411,13 @@ The token is a regular GitLab access token with API privilege.
 For OIDC authentication, it looks like :
 
 ```yaml
-host:
-  name: git.mydomain.com
-  ca: ca.crt
-token:
-  id: yyyyyy
-  secret: zzzzzz
-  redirect-port: 8888
+hosts:
+  git.mydomain.com:
+    ca: ca.crt
+    token:
+      id: yyyyyy
+      secret: zzzzzz
+      redirect-port: 8888
 ```
 
 You need to define a new OAuth application inside your GitLab instance (at `/admin/applications`)

@@ -96,7 +96,7 @@ pub fn cmd(args: &args::Archive) -> Result<()> {
 			let lock_name = if let Some(ref batch) = args.batch {
 				batch
 			} else {
-				&CliContext::global().host
+				&CliContext::global().repo.host
 			};
 			let mut lock = LockFile::open(lock_name)?;
 

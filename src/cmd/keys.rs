@@ -51,11 +51,11 @@ pub fn cmd(args: &args::Keys) -> Result<()> {
 				{
 					format!(
 						"https://{}/-/profile/keys/{}",
-						CliContext::global().host,
+						CliContext::global().repo.host,
 						key.id.value()
 					)
 				} else {
-					format!("https://{}/-/profile/keys", CliContext::global().host)
+					format!("https://{}/-/profile/keys", CliContext::global().repo.host)
 				};
 				let _ = open::that(url);
 			}
@@ -71,7 +71,7 @@ pub fn cmd(args: &args::Keys) -> Result<()> {
 			if CliContext::global().open {
 				let _ = open::that(format!(
 					"https://{}/-/profile/keys",
-					CliContext::global().host
+					CliContext::global().repo.host
 				));
 			}
 
@@ -93,7 +93,7 @@ pub fn cmd(args: &args::Keys) -> Result<()> {
 			if CliContext::global().open {
 				let _ = open::that(format!(
 					"https://{}/-/profile/keys",
-					CliContext::global().host
+					CliContext::global().repo.host
 				));
 			}
 

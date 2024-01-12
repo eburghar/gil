@@ -169,14 +169,12 @@ pub struct CliContext {
 	pub url: bool,
 	/// color mode
 	pub color: ColorChoice,
-	/// selected host
-	pub host: String,
 	/// the gitlab connexion
 	pub gitlab: Gitlab,
 	/// the configuration file
 	pub config: Config,
 	/// information about the current git repo
-	pub repo: Option<GitProject>,
+	pub repo: GitProject,
 }
 
 impl CliContext {
@@ -190,45 +188,42 @@ impl CliContext {
 		let config = Config::from_file(opts.config.as_ref(), opts.verbose)?;
 
 		// get information from git
-		let repo = GitProject::from_currentdir();
+		let repo = GitProject::from_currentdir()?;
 
 		// get the auth configuration for the remote host
-		let host = repo
-			.as_ref()
-			.and_then(|repo| repo.host.as_ref())
-			.ok_or_else(|| anyhow!("unable to find a remote host"))?;
-		let host_config = config.hosts.get(host).ok_or_else(|| {
+		let host_config = config.hosts.get(&repo.host).ok_or_else(|| {
 			anyhow!(
-				"Can't find a suitable configuration section for gitlab host {} in {}",
-				host,
-				&config.name
+				"Missing authentication configuration (hosts.\"{}\" key) in {:?}",
+				&repo.host,
+				&config.path
 			)
 		})?;
 
 		let gitlab = match &host_config.auth {
 			AuthType::OAuth2(oauth2) => {
 				// try to get the token from cache
-				if let Some(token) = OAuth2Token::from_cache(host) {
+				if let Some(token) = OAuth2Token::from_cache(&repo.host) {
 					// check if we can login with that
-					if let Ok(gitlab) = Gitlab::with_oauth2(host, token) {
+					if let Ok(gitlab) = Gitlab::with_oauth2(&repo.host, token) {
 						Ok(gitlab)
 					// otherwise try renew the token
 					} else {
-						println!("Trying to log in through https://{}", host);
-						let token = OAuth2Token::from_login(host, &host_config.ca, oauth2, &opts)?;
-						Gitlab::with_oauth2(host, token)
+						println!("Trying to log in through https://{}", &repo.host);
+						let token =
+							OAuth2Token::from_login(&repo.host, &host_config.ca, oauth2, &opts)?;
+						Gitlab::with_oauth2(&repo.host, token)
 					}
 				// otherwise try to login following the oauth2 flow
 				} else {
-					println!("Trying to log in through https://{}", host);
-					let token = crate::oidc::login(host, &host_config.ca, oauth2, &opts)?;
-					Gitlab::with_oauth2(host, token)
+					println!("Trying to log in through https://{}", &repo.host);
+					let token = crate::oidc::login(&repo.host, &host_config.ca, oauth2, &opts)?;
+					Gitlab::with_oauth2(&repo.host, token)
 				}
 			}
 
-			AuthType::Token(token) => Gitlab::new(host, token),
+			AuthType::Token(token) => Gitlab::new(&repo.host, token),
 		}
-		.with_context(|| format!("Can't connect to {}", host))?;
+		.with_context(|| format!("Can't connect to {}", &repo.host))?;
 
 		#[cfg(feature = "color")]
 		let color = opts.color;
@@ -242,7 +237,6 @@ impl CliContext {
 			open: opts.open,
 			url: opts.url,
 			color,
-			host: host.to_owned(),
 			gitlab,
 			config,
 			repo,
@@ -256,7 +250,7 @@ impl CliContext {
 	{
 		let id = default
 			.map(AsRef::as_ref)
-			.or_else(|| self.repo.as_ref().and_then(|repo| repo.name.as_deref()));
+			.or_else(|| self.repo.name.as_deref());
 		if let Some(id) = id {
 			projects::Project::builder()
 				.project(id)
@@ -277,7 +271,7 @@ impl CliContext {
 	{
 		let tag = default
 			.map(AsRef::as_ref)
-			.or_else(|| self.repo.as_ref().and_then(|repo| repo.tag.as_deref()));
+			.or_else(|| self.repo.tag.as_deref());
 		if let Some(tag) = tag {
 			tags::Tag::builder()
 				.project(project.path_with_namespace.as_str())
@@ -309,7 +303,7 @@ impl CliContext {
 	{
 		let branch = default
 			.map(AsRef::as_ref)
-			.or_else(|| self.repo.as_ref().and_then(|repo| repo.branch.as_deref()));
+			.or_else(|| Some(&self.repo.branch));
 		if let Some(branch) = branch {
 			branches::Branch::builder()
 				.project(project.path_with_namespace.as_str())
@@ -332,20 +326,16 @@ impl CliContext {
 
 	/// Returns the provided tag name (default) or the one extracted from the repo
 	pub fn get_tagexp<'a>(&'a self, default: Option<&'a String>) -> Result<&'a String> {
-		default
-			.or_else(|| self.repo.as_ref().and_then(|repo| repo.tag.as_ref()))
-			.ok_or_else(|| {
-				anyhow!("Can't find a project tag. Specify one manually on the command line")
-			})
+		default.or_else(|| self.repo.tag.as_ref()).ok_or_else(|| {
+			anyhow!("Can't find a project tag. Specify one manually on the command line")
+		})
 	}
 
 	/// Returns the provided branch name (default) or the one extracted from the repo
 	pub fn get_branchexp<'a>(&'a self, default: Option<&'a String>) -> Result<&'a String> {
-		default
-			.or_else(|| self.repo.as_ref().and_then(|repo| repo.branch.as_ref()))
-			.ok_or_else(|| {
-				anyhow!("Can't find a project branch. Specify one manually on the command line")
-			})
+		default.or_else(|| Some(&self.repo.branch)).ok_or_else(|| {
+			anyhow!("Can't find a project branch. Specify one manually on the command line")
+		})
 	}
 
 	/// Get a reference (which can be the one provided or a default one) for the given project
