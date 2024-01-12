@@ -4,6 +4,7 @@ use anyhow::{anyhow, Context, Result};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::{
+	collections::HashMap,
 	env,
 	ffi::OsStr,
 	fs::{create_dir_all, File},
@@ -16,20 +17,18 @@ static ORG: &str = "ITSufficient";
 /// Root configuration file
 #[derive(Deserialize)]
 pub struct Config {
-	/// gitlab host
-	pub host: Host,
-	/// auth type
-	pub auth: AuthType,
+	pub hosts: HashMap<String, HostConfig>,
 	#[serde(skip)]
-	/// filename associated to the config file
-	pub name: String,
+	pub path: PathBuf,
 }
 
-/// Host parameters
+/// Root configuration file
 #[derive(Deserialize)]
-pub struct Host {
-	pub name: String,
+pub struct HostConfig {
+	/// host CA
 	pub ca: Option<String>,
+	/// auth type
+	pub auth: AuthType,
 }
 
 /// Authentication type supported
@@ -97,13 +96,8 @@ impl Config {
 		let mut config: Self = serde_yaml::from_reader(file)
 			.with_context(|| format!("Can't read {:?}", &config_path))?;
 
-		// save the config filename for later use
-		// the config has been read from a file so the unwrap is harmles
-		config.name = config_path
-			.file_name()
-			.map(|name| name.to_string_lossy().to_string())
-			.unwrap();
-		// config.path = config_path;
+		// save the path for reference
+		config.path = config_path;
 		Ok(config)
 	}
 }
@@ -119,9 +113,9 @@ impl OAuth2Token {
 	}
 
 	/// Try silently read the cache file
-	pub fn from_cache() -> Option<Self> {
+	pub fn from_cache(host: &String) -> Option<Self> {
 		ProjectDirs::from("me", ORG, env!("CARGO_BIN_NAME"))
-			.map(|dir| dir.cache_dir().join("oidc_login"))
+			.map(|dir| dir.cache_dir().join(host))
 			.and_then(|path| {
 				File::open(path)
 					.ok()
@@ -130,15 +124,20 @@ impl OAuth2Token {
 	}
 
 	/// Try to login
-	pub fn from_login(host: &Host, config: &OAuth2, opts: &Opts) -> Result<Self> {
-		login(host, config, opts)
+	pub fn from_login(
+		host: &String,
+		ca: &Option<String>,
+		config: &OAuth2,
+		opts: &Opts,
+	) -> Result<Self> {
+		login(host, ca, config, opts)
 	}
 
 	/// Try to save the cache information to file
-	pub fn save(&self) -> Result<()> {
+	pub fn save(&self, host: &String) -> Result<()> {
 		ProjectDirs::from("me", ORG, env!("CARGO_BIN_NAME"))
 			.ok_or_else(|| anyhow!("Unable to find a suitable cache file path for oidc login"))
-			.map(|dir| dir.cache_dir().join("oidc_login"))
+			.map(|dir| dir.cache_dir().join(host))
 			.and_then(|path| {
 				// create directories
 				if let Some(p) = path.parent() {
