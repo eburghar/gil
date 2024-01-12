@@ -18,13 +18,17 @@ use crate::{
 		archive::cmd as archive, branches::cmd as branches, keys::cmd as keys,
 		pipeline::cmd as pipeline, project::cmd as project, tags::cmd as tags, token::cmd as token,
 	},
-	context::CONTEXT,
+	context::{CliContext, CONTEXT},
 };
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 fn main() -> Result<()> {
-	match &CONTEXT.cmd {
+	CONTEXT
+		.set(CliContext::from_args(args::from_env())?)
+		.map_err(|_| anyhow!("Can't set global context"))?;
+
+	match &CliContext::global().cmd {
 		SubCommand::Tags(args) => tags(args),
 		SubCommand::Pipeline(args) => pipeline(args),
 		SubCommand::Archive(args) => archive(args),
