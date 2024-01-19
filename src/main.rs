@@ -13,28 +13,30 @@ mod types;
 mod utils;
 
 use crate::{
-	args::SubCommand,
-	cmd::{
-		archive::cmd as archive, branches::cmd as branches, keys::cmd as keys,
-		pipeline::cmd as pipeline, project::cmd as project, tags::cmd as tags, token::cmd as token,
-	},
-	context::{CliContext, CONTEXT},
+    args::SubCommand,
+    cmd::{
+        archive::cmd as archive, branches::cmd as branches, keys::cmd as keys,
+        pipeline::cmd as pipeline, project::cmd as project, tags::cmd as tags, token::cmd as token,
+        users::cmd as users,
+    },
+    context::{CliContext, CONTEXT},
 };
 
 use anyhow::{anyhow, Result};
 
 fn main() -> Result<()> {
-	CONTEXT
-		.set(CliContext::from_args(args::from_env())?)
-		.map_err(|_| anyhow!("Can't set global context"))?;
+    CONTEXT
+        .set(CliContext::from_args(args::from_env())?)
+        .map_err(|_| anyhow!("Can't set global context"))?;
 
-	match &CliContext::global().cmd {
-		SubCommand::Tags(args) => tags(args),
-		SubCommand::Pipeline(args) => pipeline(args),
-		SubCommand::Archive(args) => archive(args),
-		SubCommand::Project(args) => project(args),
-		SubCommand::Branches(args) => branches(args),
-		SubCommand::Token(args) => token(args),
-		SubCommand::Keys(args) => keys(args),
-	}
+    match &CliContext::global().cmd {
+        SubCommand::Tags(args) => tags(args),
+        SubCommand::Pipeline(args) => pipeline(args),
+        SubCommand::Archive(args) => archive(args),
+        SubCommand::Project(args) => project(args),
+        SubCommand::Branches(args) => branches(args),
+        SubCommand::Token(args) => token(args),
+        SubCommand::Keys(args) => keys(args),
+        SubCommand::Users(args) => users(args),
+    }
 }
