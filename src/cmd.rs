@@ -5,3 +5,4 @@ pub mod pipeline;
 pub mod project;
 pub mod tags;
 pub mod token;
+pub mod users;

@@ -35,12 +35,14 @@ is in place, so feel free to fork or send PR.
 
   - `keys`: manage GitLab ssh keys
 
+  - `users`: manage GitLab users
+
 It works on Windows and with multiple GitLab hosts.
 
 ## General use
 
 ```
-gil 0.7.0
+gil 0.8.0
 
 Usage: gil [-c <config>] [-v] [-o] [-u] [--color <color>] [--no-cache] <command> [<args>]
 
@@ -63,6 +65,7 @@ Commands:
   project           Display information about project
   token             Manage user tokens
   keys              Manage user keys
+  users             Manage users
 ```
 
 ## Modus operandi
@@ -218,7 +221,7 @@ gil archive extract -r -p group/project 0.5.0
 ## Archive command
 
 ```
-gil 0.7.0
+gil 0.8.0
 
 Usage: gil archive extract [<ref_>] [-p <project>] [-b <batch>] [-s <strip>] [-r] [-d <dir>] [-k] [-u]
 
@@ -260,7 +263,7 @@ re-extract archives.
 ## Tags command
 
 ```
-gil 0.7.0
+gil 0.8.0
 
 Usage: gil tags <command> [<args>]
 
@@ -279,7 +282,7 @@ Allow switching on and off tags protection. Without argument, it will (un)protec
 ## Pipeline command
 
 ```
-gil 0.7.0
+gil 0.8.0
 
 Usage: gil pipeline <command> [<args>]
 
@@ -298,7 +301,7 @@ Commands:
 ### log sub command
 
 ```
-gil 0.7.0
+gil 0.8.0
 
 Usage: gil pipeline log [<id>] [-p <project>] [-r <ref>] [-s <section>] [-j <job-id>] [-a] [-h] [-H]
 
@@ -349,7 +352,7 @@ Depending on the `color` mode, all colors (ANSI codes) may be striped out from t
 A generic command used to automatically provision tokens in script.
 
 ```
-gil 0.7.0
+gil 0.8.0
 
 Usage: gil token <command> [<args>]
 
@@ -370,7 +373,7 @@ Commands:
 A generic command used to automatically provision ssh keys in script.
 
 ```
-gil 0.7.0
+gil 0.8.0
 
 Usage: gil keys <command> [<args>]
 
@@ -383,6 +386,24 @@ Commands:
   list              List keys
   add               Add a key
   delete            Delete a key
+```
+
+## Users command
+
+For now just a simple command to retrieve the username of the currently logged user
+
+```
+gil 0.8.0
+
+Usage: gil users <command> [<args>]
+
+Manage users
+
+Options:
+  --help            display usage information
+
+Commands:
+  current           Get current user name
 ```
 
 ## Configuration
