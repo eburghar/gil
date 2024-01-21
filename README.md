@@ -14,7 +14,7 @@ to achieve that goal:
   
 - shows the least amount of information.
 
-It offers for the moment only 5 commands that are part of my regular workflows and spared me a lot
+It offers for the moment only few commands that are part of my regular workflows and spared me a lot
 of time from the web interface. It is easy to add new commands though as the application skeleton
 is in place, so feel free to fork or send PR.
 
@@ -31,11 +31,11 @@ is in place, so feel free to fork or send PR.
   
   - `project`: display information about GitLab project (mainly to open the page in the browser)
 
-  - `token`: manage GitLab token
+  - `token`: manage GitLab token (useful in scripts to auto-provision and renew tokens)
 
-  - `keys`: manage GitLab ssh keys
+  - `keys`: manage GitLab ssh keys (useful in scripts to auto-provision and renew keys)
 
-  - `users`: manage GitLab users
+  - `users`: manage GitLab users (useful in scripts to get the username from oidc workflow)
 
 It works on Windows and with multiple GitLab hosts.
 
@@ -346,6 +346,12 @@ gil pipeline log -h -s prepare
 ```
 
 Depending on the `color` mode, all colors (ANSI codes) may be striped out from the log.
+
+There is no follow command, but you can achieve a similar effect with
+
+```bash
+watch -c 'gil --color always pipeline log | tail --lines $((LINES))'
+```
 
 ## Token command
 
