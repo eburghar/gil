@@ -64,7 +64,7 @@ pub fn cmd(args: &args::Keys) -> Result<()> {
 		}
 
 		KeysCmd::List(args) => {
-			let user = CliContext::global().get_user(args.user.as_ref())?;
+			let user = CliContext::global().get_user(args.user.as_deref())?;
 			let endpoint = ListKeys::builder().user(&user.username).build()?;
 			let keys: Vec<SshKey> = endpoint.query(&CliContext::global().gitlab)?;
 

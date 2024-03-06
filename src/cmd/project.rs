@@ -5,7 +5,7 @@ use anyhow::Result;
 pub fn cmd(args: &args::Project) -> Result<()> {
 	let project = CliContext::global().get_project(args.project.as_ref())?;
 	// get a reference (a tag or a branch)
-	let ref_ = CliContext::global().get_ref(args.ref_.as_ref(), &project)?;
+	let ref_ = CliContext::global().get_ref(args.ref_.as_deref(), &project)?;
 
 	CliContext::global().print_project(&project, &ref_)?;
 	if CliContext::global().open {
