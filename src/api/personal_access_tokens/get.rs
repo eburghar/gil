@@ -48,7 +48,7 @@ pub struct PersonalAccessTokens<'a> {
 	#[builder(default)]
 	state: Option<PersonalAccessTokenState>,
 	#[builder(default)]
-	search: Option<&'a String>,
+	search: Option<&'a str>,
 }
 
 impl<'a> PersonalAccessTokens<'a> {

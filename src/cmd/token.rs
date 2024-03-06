@@ -21,7 +21,7 @@ pub fn cmd(args: &args::Token) -> Result<()> {
 			// try to revoke a token with the the same name
 			if args.revoke {
 				if let Ok(token) =
-					CliContext::global().get_token(&IdOrName::Name(args.name.to_owned()))
+					CliContext::global().get_token(IdOrName::Name(args.name.to_owned()).borrow())
 				{
 					let endpoint = RevokePersonalAccessToken::builder()
 						.token_id(token.id)
@@ -51,7 +51,7 @@ pub fn cmd(args: &args::Token) -> Result<()> {
 		}
 
 		TokenCmd::Revoke(args) => {
-			let token = CliContext::global().get_token(&args.name)?;
+			let token = CliContext::global().get_token(args.name.borrow())?;
 			let endpoint = RevokePersonalAccessToken::builder()
 				.token_id(token.id)
 				.build()?;
@@ -64,7 +64,7 @@ pub fn cmd(args: &args::Token) -> Result<()> {
 			let mut builder = PersonalAccessTokens::builder();
 			builder
 				.user_id(user.id.value())
-				.search(args.search.as_ref());
+				.search(args.search.as_deref());
 			if args.revoked {
 				builder.revoked(Some(true));
 			}
@@ -75,13 +75,12 @@ pub fn cmd(args: &args::Token) -> Result<()> {
 			let tokens: Vec<PersonalAccessToken> = endpoint.query(&CliContext::global().gitlab)?;
 			if tokens.is_empty() {
 				bail!("No token found matching criterias");
-			} else {
-				CliContext::global().print_tokens(&tokens, &user)?;
 			}
+			CliContext::global().print_tokens(&tokens, &user)?;
 		}
 
 		TokenCmd::Rotate(args) => {
-			let token = CliContext::global().get_token(&args.name)?;
+			let token = CliContext::global().get_token(args.name.borrow())?;
 			let endpoint = RotatePersonalAccessToken::builder()
 				.token_id(token.id)
 				.expires_at(args.expires_at)
