@@ -47,7 +47,7 @@ pub fn cmd(args: &args::Pipeline) -> Result<()> {
 			// get project from command line or context
 			let project = CliContext::global().get_project(cmd_args.project.as_ref())?;
 			// get a reference (a tag or a branch)
-			let ref_ = CliContext::global().check_ref(cmd_args.ref_.as_ref(), &project)?;
+			let ref_ = CliContext::global().check_ref(cmd_args.ref_.as_deref(), &project)?;
 
 			let endpoint = pipelines::CreatePipeline::builder()
 				.project(project.path_with_namespace.to_owned())
@@ -76,7 +76,7 @@ pub fn cmd(args: &args::Pipeline) -> Result<()> {
 			// get project from command line or context
 			let project = CliContext::global().get_project(cmd_args.project.as_ref())?;
 			// get a reference (a tag or a branch)
-			let ref_ = CliContext::global().check_ref(cmd_args.ref_.as_ref(), &project)?;
+			let ref_ = CliContext::global().check_ref(cmd_args.ref_.as_deref(), &project)?;
 			let pipeline = CliContext::global().get_pipeline(cmd_args.id, &project, &ref_)?;
 
 			CliContext::global().print_pipeline(&pipeline, &project)?;
@@ -93,7 +93,7 @@ pub fn cmd(args: &args::Pipeline) -> Result<()> {
 			// get project from command line or context
 			let project = CliContext::global().get_project(cmd_args.project.as_ref())?;
 			// get a reference (a tag or a branch)
-			let ref_ = CliContext::global().check_ref(cmd_args.ref_.as_ref(), &project)?;
+			let ref_ = CliContext::global().check_ref(cmd_args.ref_.as_deref(), &project)?;
 			let pipeline = CliContext::global().get_pipeline(cmd_args.id, &project, &ref_)?;
 
 			let endpoint = pipelines::CancelPipeline::builder()
@@ -121,7 +121,7 @@ pub fn cmd(args: &args::Pipeline) -> Result<()> {
 			// get project from command line or context
 			let project = CliContext::global().get_project(cmd_args.project.as_ref())?;
 			// get a reference (a tag or a branch)
-			let ref_ = CliContext::global().check_ref(cmd_args.ref_.as_ref(), &project)?;
+			let ref_ = CliContext::global().check_ref(cmd_args.ref_.as_deref(), &project)?;
 			let pipeline = CliContext::global().get_pipeline(cmd_args.id, &project, &ref_)?;
 
 			let endpoint = pipelines::RetryPipeline::builder()
@@ -147,7 +147,7 @@ pub fn cmd(args: &args::Pipeline) -> Result<()> {
 			// get project from command line or context
 			let project = CliContext::global().get_project(cmd_args.project.as_ref())?;
 			// get a reference (a tag or a branch)
-			let ref_ = CliContext::global().check_ref(cmd_args.ref_.as_ref(), &project)?;
+			let ref_ = CliContext::global().check_ref(cmd_args.ref_.as_deref(), &project)?;
 
 			let scopes = [
 				JobScope::Running,
