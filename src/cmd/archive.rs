@@ -122,7 +122,7 @@ pub fn cmd(args: &args::Archive) -> Result<()> {
                     continue;
                 }
 
-                let prj = CliContext::global().get_project(Some(project))?;
+                let prj = CliContext::global().get_project(Some(project.as_str()))?;
                 let tag = CliContext::global().get_tag(Some(tag), &prj)?;
                 // get locked_commit or tag commit
                 let mut found = false;

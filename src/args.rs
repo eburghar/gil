@@ -87,7 +87,7 @@ pub enum SubCommand {
 pub struct ArchiveExtract {
     /// the project to extract archive from
     #[argh(option, short = 'p')]
-    pub project: Option<String>,
+    pub project: Option<OwnedNameOrId>,
 
     /// batch mode: yaml file containing a list of project and tag to extract
     #[argh(option, short = 'b')]
@@ -146,7 +146,7 @@ pub enum TagsCmd {
 pub struct TagsProtect {
     /// the project to protect tags on
     #[argh(option, short = 'p')]
-    pub project: Option<String>,
+    pub project: Option<OwnedNameOrId>,
 
     /// tag expression: '*' (default)
     #[argh(positional, default = "\"*\".to_string()")]
@@ -159,7 +159,7 @@ pub struct TagsProtect {
 pub struct TagsUnprotect {
     /// the project to protect tags on
     #[argh(option, short = 'p')]
-    pub project: Option<String>,
+    pub project: Option<OwnedNameOrId>,
 
     /// tag expression: '*' (default)
     #[argh(positional, default = "\"*\".to_string()")]
@@ -181,7 +181,7 @@ pub struct Tags {
 pub struct BranchesProtect {
     /// the project to protect branches on
     #[argh(option, short = 'p')]
-    pub project: Option<String>,
+    pub project: Option<OwnedNameOrId>,
 
     /// allow force push
     #[argh(switch, short = 'f')]
@@ -198,7 +198,7 @@ pub struct BranchesProtect {
 pub struct BranchesUnprotect {
     /// the project to protect tags from
     #[argh(option, short = 'p')]
-    pub project: Option<String>,
+    pub project: Option<OwnedNameOrId>,
 
     /// branch expression
     #[argh(positional)]
@@ -238,7 +238,7 @@ pub enum PipelineCmd {
 pub struct PipelineList {
     /// the project which owns the pipeline
     #[argh(option, short = 'p')]
-    pub project: Option<String>,
+    pub project: Option<OwnedNameOrId>,
 
     /// limit
     #[argh(option, short = 'l', default = "10")]
@@ -255,7 +255,7 @@ pub struct PipelineList {
 pub struct PipelineStatus {
     /// the project which owns the pipeline
     #[argh(option, short = 'p')]
-    pub project: Option<String>,
+    pub project: Option<OwnedNameOrId>,
 
     /// reference (tag or branch)
     #[argh(option, short = 'r')]
@@ -272,7 +272,7 @@ pub struct PipelineStatus {
 pub struct PipelineCreate {
     /// the project which owns the pipeline
     #[argh(option, short = 'p')]
-    pub project: Option<String>,
+    pub project: Option<OwnedNameOrId>,
 
     /// reference (tag or branch)
     #[argh(positional)]
@@ -285,7 +285,7 @@ pub struct PipelineCreate {
 pub struct PipelineCancel {
     /// the project which owns the pipeline
     #[argh(option, short = 'p')]
-    pub project: Option<String>,
+    pub project: Option<OwnedNameOrId>,
 
     /// reference (tag or branch)
     #[argh(option, short = 'r')]
@@ -302,7 +302,7 @@ pub struct PipelineCancel {
 pub struct PipelineRetry {
     /// the project which owns the pipeline
     #[argh(option, short = 'p')]
-    pub project: Option<String>,
+    pub project: Option<OwnedNameOrId>,
 
     /// reference (tag or branch)
     #[argh(option, short = 'r')]
@@ -319,7 +319,7 @@ pub struct PipelineRetry {
 pub struct PipelineLog {
     /// the project which owns the pipeline
     #[argh(option, short = 'p')]
-    pub project: Option<String>,
+    pub project: Option<OwnedNameOrId>,
 
     /// reference (tag or branch)
     #[argh(option, short = 'r')]
@@ -383,7 +383,7 @@ pub fn from_env<T: TopLevelCommand>() -> T {
 pub struct Project {
     /// the project to protect tags from
     #[argh(option, short = 'p')]
-    pub project: Option<String>,
+    pub project: Option<OwnedNameOrId>,
 
     /// reference (tag or branch)
     #[argh(positional)]
@@ -408,12 +408,14 @@ pub enum TokenCmd {
     Rotate(TokenRotate),
 }
 
-/// When we accept an id or name as parameter
+/// Owned version of gitlab::api::common::NameOrId
 pub enum OwnedNameOrId {
     Name(String),
     Id(u64),
 }
 
+/// Construct an OwnedNameOrId from a String.
+// Try to parse an u64 and fallback to string
 impl FromStr for OwnedNameOrId {
     type Err = Error;
 
@@ -435,13 +437,23 @@ impl Display for OwnedNameOrId {
     }
 }
 
-impl OwnedNameOrId {
-    /// Returns a NameOrId that borrows the String
-    pub fn as_ref(&self) -> NameOrId {
-        match self {
-            OwnedNameOrId::Id(id) => NameOrId::Id(*id),
+/// Convert a borrowed OwnedNameOrId to a NameOrId
+/// Auto-implement into()
+impl<'a> From<&'a OwnedNameOrId> for NameOrId<'a> {
+    fn from(value: &'a OwnedNameOrId) -> Self {
+        match value {
             OwnedNameOrId::Name(name) => NameOrId::Name(name.into()),
+            OwnedNameOrId::Id(id) => NameOrId::Id(*id),
         }
+    }
+}
+
+impl OwnedNameOrId {
+    /// Like Option::as_ref but for OwnedNameOrId.
+    /// Returns a NameOrId which is a kind of borrowed version of OwnedNameOrId
+    /// It is more readable to call .as_ref than NameOrId::From(&name_or_id)
+    pub fn as_ref(&self) -> NameOrId {
+        self.into()
     }
 }
 
