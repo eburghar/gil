@@ -29,7 +29,7 @@ use gitlab::{
     },
     types, Gitlab, StatusState,
 };
-use std::{fmt::Display, str::FromStr, sync::OnceLock};
+use std::{convert::Into, fmt::Display, str::FromStr, sync::OnceLock};
 
 fn status_style(status: StatusState) -> Option<Style> {
     Some(match status {
@@ -245,14 +245,17 @@ impl CliContext {
     }
 
     /// Get a project (which can be the one provided or a default one)
-    pub fn get_project<'a, T>(&'a self, default: Option<&'a T>) -> Result<types::Project>
+    pub fn get_project<'a, T>(&'a self, default: Option<T>) -> Result<types::Project>
     where
-        T: AsRef<str> + Display,
+        T: Into<NameOrId<'a>> + Display,
     {
-        let id = default.map(AsRef::as_ref).or(self.repo.name.as_deref());
-        if let Some(id) = id {
+        let id: Option<NameOrId> =
+            default
+                .map(Into::into)
+                .or(self.repo.name.as_deref().map(Into::into));
+        if let Some(id) = &id {
             projects::Project::builder()
-                .project(id)
+                .project(id.to_owned())
                 .build()?
                 .query(&self.gitlab)
                 .with_context(|| format!("Can't find a project named {}", id))
@@ -380,7 +383,7 @@ impl CliContext {
         &self,
         default: Option<u64>,
         project: &types::Project,
-        ref_: &String,
+        ref_: &str,
     ) -> Result<types::PipelineBasic> {
         if let Some(id) = default {
             let endpoint = pipelines::Pipeline::builder()
@@ -423,7 +426,7 @@ impl CliContext {
         default: Option<u64>,
         pipeline_id: Option<u64>,
         project: &types::Project,
-        ref_: &String,
+        ref_: &str,
         scopes: I,
     ) -> Result<types::Job>
     where
@@ -551,10 +554,14 @@ impl CliContext {
     }
 
     /// Get a token by its name or id
-    pub fn get_token(&self, name: NameOrId) -> Result<PersonalAccessToken> {
+    pub fn get_token<'a, T>(&'a self, name: T) -> Result<PersonalAccessToken>
+    where
+        T: Into<NameOrId<'a>> + Display,
+    {
         let user = self.get_current_user()?;
 
         // search token by id
+        let name = name.into();
         let tokens: Vec<PersonalAccessToken> = match &name {
             NameOrId::Id(id) => {
                 let endpoint = PersonalAccessTokens::builder()
@@ -840,7 +847,7 @@ impl CliContext {
     }
 
     // Print project header
-    pub fn print_project(&self, project: &types::Project, ref_: &String) -> Result<()> {
+    pub fn print_project(&self, project: &types::Project, ref_: &str) -> Result<()> {
         let mut msg = StyledStr::new();
         msg.none("Project ");
         msg.literal(&project.id.to_string());
