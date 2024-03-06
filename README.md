@@ -347,7 +347,7 @@ gil pipeline log -h -s prepare
 
 Depending on the `color` mode, all colors (ANSI codes) may be striped out from the log.
 
-There is no follow command, but you can achieve a similar effect with
+There is no follow option, but you can achieve a similar effect with
 
 ```bash
 watch -c 'gil --color always pipeline log | tail --lines $((LINES))'
