@@ -29,7 +29,7 @@ use gitlab::{
 	},
 	types, Gitlab, StatusState,
 };
-use std::{convert::Into, fmt::Display, str::FromStr, sync::OnceLock};
+use std::{convert::Into, fmt::Display, process::ExitCode, str::FromStr, sync::OnceLock};
 
 fn status_style(status: StatusState) -> Option<Style> {
 	Some(match status {
@@ -605,15 +605,16 @@ impl CliContext {
 	}
 
 	/// Print a StyledStr with Colorize
-	pub fn print_msg(&self, msg: StyledStr) -> Result<()> {
+	pub fn print_msg(&self, msg: StyledStr) -> Result<ExitCode> {
 		Colorizer::new(Stream::Stdout, self.color)
 			.with_content(msg)
 			.print()
 			.with_context(|| "Failed to print")
+			.map(|_| ExitCode::from(0))
 	}
 
 	/// Print section headers
-	fn print_section(&self, title: &str, section: &Section, show_line: bool) -> Result<()> {
+	fn print_section(&self, title: &str, section: &Section, show_line: bool) -> Result<ExitCode> {
 		let mut msg = StyledStr::new();
 
 		msg.warning(format!("\n> {} [", title));
@@ -767,7 +768,7 @@ impl CliContext {
 		&self,
 		pipeline: &types::PipelineBasic,
 		project: &types::Project,
-	) -> Result<()> {
+	) -> Result<ExitCode> {
 		let mut msg = StyledStr::new();
 		self.msg_pipeline(&mut msg, pipeline, project);
 		self.print_msg(msg)
@@ -778,7 +779,7 @@ impl CliContext {
 		&self,
 		pipelines: &[types::PipelineBasic],
 		project: &types::Project,
-	) -> Result<()> {
+	) -> Result<ExitCode> {
 		let mut msg = StyledStr::new();
 		if pipelines.is_empty() {
 			msg.none("No pipelines found for ");
@@ -797,7 +798,7 @@ impl CliContext {
 	}
 
 	/// Print the provided jobs list in reverse order (run order)
-	pub fn print_jobs(&self, jobs: &[types::Job]) -> Result<()> {
+	pub fn print_jobs(&self, jobs: &[types::Job]) -> Result<ExitCode> {
 		let mut msg = StyledStr::new();
 		if !jobs.is_empty() {
 			for job in jobs.iter().rev() {
@@ -829,7 +830,7 @@ impl CliContext {
 	}
 
 	// Print project header
-	pub fn print_project(&self, project: &types::Project, ref_: &str) -> Result<()> {
+	pub fn print_project(&self, project: &types::Project, ref_: &str) -> Result<ExitCode> {
 		let mut msg = StyledStr::new();
 		msg.none("Project ");
 		msg.literal(&project.id.to_string());
@@ -849,7 +850,7 @@ impl CliContext {
 		&self,
 		tokens: &[crate::types::PersonalAccessToken],
 		user: &types::UserBasic,
-	) -> Result<()> {
+	) -> Result<ExitCode> {
 		let mut msg = StyledStr::new();
 		msg.none("Token(s) for user ");
 		msg.literal(&user.username);
@@ -913,7 +914,7 @@ impl CliContext {
 	}
 
 	/// Print ssh keys
-	pub fn print_keys(&self, keys: &Vec<SshKey>, user: &types::UserBasic) -> Result<()> {
+	pub fn print_keys(&self, keys: &Vec<SshKey>, user: &types::UserBasic) -> Result<ExitCode> {
 		let mut msg = StyledStr::new();
 		msg.none("Key(s) for user ");
 		msg.literal(&user.username);
@@ -932,9 +933,15 @@ impl CliContext {
 	}
 
 	/// print a username
-	pub fn print_username(&self, user: &types::UserBasic) -> Result<()> {
+	pub fn print_username(&self, user: &types::UserBasic) -> Result<ExitCode> {
 		let mut msg = StyledStr::new();
 		msg.none(&user.username);
+		self.print_msg(msg)
+	}
+
+	pub fn print_useradmin(&self, user: &types::User) -> Result<ExitCode> {
+		let mut msg = StyledStr::new();
+		msg.none(&user.is_admin.unwrap_or(false).to_string());
 		self.print_msg(msg)
 	}
 }

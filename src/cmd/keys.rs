@@ -8,9 +8,9 @@ use crate::{
 use anyhow::{Context, Result};
 use gitlab::api::{self, Query};
 use ssh_key::{HashAlg, PublicKey};
-use std::fs::read_to_string;
+use std::{fs::read_to_string, process::ExitCode};
 
-pub fn cmd(args: &args::Keys) -> Result<()> {
+pub fn cmd(args: &args::Keys) -> Result<ExitCode> {
 	match &args.cmd {
 		KeysCmd::Add(args) => {
 			// read ssh key on disk
@@ -60,7 +60,7 @@ pub fn cmd(args: &args::Keys) -> Result<()> {
 				let _ = open::that(url);
 			}
 
-			Ok(())
+			Ok(ExitCode::from(0))
 		}
 
 		KeysCmd::List(args) => {
@@ -97,7 +97,7 @@ pub fn cmd(args: &args::Keys) -> Result<()> {
 				));
 			}
 
-			Ok(())
+			Ok(ExitCode::from(0))
 		}
 	}
 }

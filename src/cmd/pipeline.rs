@@ -1,3 +1,5 @@
+use std::process::ExitCode;
+
 use crate::{
 	args::{self, PipelineCmd},
 	context::CliContext,
@@ -17,7 +19,7 @@ use gitlab::{
 };
 
 /// Command implementation
-pub fn cmd(args: &args::Pipeline) -> Result<()> {
+pub fn cmd(args: &args::Pipeline) -> Result<ExitCode> {
 	match &args.cmd {
 		PipelineCmd::List(cmd_args) => {
 			// get project from command line or context
@@ -40,7 +42,7 @@ pub fn cmd(args: &args::Pipeline) -> Result<()> {
 			if CliContext::global().open {
 				let _ = open::that(format!("{}/-/pipelines", &project.web_url));
 			}
-			Ok(())
+			Ok(ExitCode::from(0))
 		}
 
 		PipelineCmd::Create(cmd_args) => {
@@ -69,7 +71,7 @@ pub fn cmd(args: &args::Pipeline) -> Result<()> {
 			if CliContext::global().open {
 				let _ = open::that(pipeline.web_url);
 			}
-			Ok(())
+			Ok(ExitCode::from(0))
 		}
 
 		PipelineCmd::Status(cmd_args) => {
@@ -86,7 +88,7 @@ pub fn cmd(args: &args::Pipeline) -> Result<()> {
 			if CliContext::global().open {
 				let _ = open::that(pipeline.web_url);
 			}
-			Ok(())
+			Ok(ExitCode::from(0))
 		}
 
 		PipelineCmd::Cancel(cmd_args) => {
@@ -114,7 +116,7 @@ pub fn cmd(args: &args::Pipeline) -> Result<()> {
 			if CliContext::global().open {
 				let _ = open::that(pipeline.web_url);
 			}
-			Ok(())
+			Ok(ExitCode::from(0))
 		}
 
 		PipelineCmd::Retry(cmd_args) => {
@@ -140,7 +142,7 @@ pub fn cmd(args: &args::Pipeline) -> Result<()> {
 			if CliContext::global().open {
 				let _ = open::that(pipeline.web_url);
 			}
-			Ok(())
+			Ok(ExitCode::from(0))
 		}
 
 		PipelineCmd::Log(cmd_args) => {
@@ -172,7 +174,7 @@ pub fn cmd(args: &args::Pipeline) -> Result<()> {
 			if CliContext::global().open {
 				let _ = open::that(job.web_url);
 			}
-			Ok(())
+			Ok(ExitCode::from(0))
 		}
 	}
 }

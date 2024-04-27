@@ -16,6 +16,7 @@ use std::{
 	io,
 	ops::Deref,
 	path::PathBuf,
+	process::ExitCode,
 };
 
 fn get_or_create_dir(dir: &str, keep: bool, update: bool, verbose: bool) -> Result<PathBuf> {
@@ -69,7 +70,7 @@ impl Deref for BatchConfig {
 }
 
 /// Command implementaton
-pub fn cmd(args: &args::Archive) -> Result<()> {
+pub fn cmd(args: &args::Archive) -> Result<ExitCode> {
 	match &args.cmd {
 		ArchiveCmd::Extract(args) => {
 			// rename mode is like -s 1 (we remove the first path component) + replace by the project name
@@ -280,7 +281,7 @@ pub fn cmd(args: &args::Archive) -> Result<()> {
 			}
 			lock.save(args.update)?;
 
-			Ok(())
+			Ok(ExitCode::from(0))
 		}
 	}
 }

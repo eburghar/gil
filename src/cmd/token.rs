@@ -1,3 +1,5 @@
+use std::process::ExitCode;
+
 use crate::{
 	api::{
 		personal_access_tokens::{
@@ -15,7 +17,7 @@ use crate::{
 use anyhow::{bail, Context, Result};
 use gitlab::api::{self, Query};
 
-pub fn cmd(args: &args::Token) -> Result<()> {
+pub fn cmd(args: &args::Token) -> Result<ExitCode> {
 	match &args.cmd {
 		TokenCmd::Create(args) => {
 			// try to revoke a token with the the same name
@@ -99,5 +101,5 @@ pub fn cmd(args: &args::Token) -> Result<()> {
 		));
 	}
 
-	Ok(())
+	Ok(ExitCode::from(0))
 }
