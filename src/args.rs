@@ -664,10 +664,16 @@ pub struct Users {
 #[derive(FromArgs)]
 #[argh(subcommand)]
 pub enum UserCmd {
-	Current(Current),
+	Current(UserCurrent),
+	IsAdmin(UserIsAdmin),
 }
 
 /// Get current user name
 #[derive(FromArgs)]
 #[argh(subcommand, name = "current")]
-pub struct Current {}
+pub struct UserCurrent {}
+
+/// return true if user is admin
+#[derive(FromArgs)]
+#[argh(subcommand, name = "isadmin")]
+pub struct UserIsAdmin {}

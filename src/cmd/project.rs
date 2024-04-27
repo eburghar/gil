@@ -9,8 +9,9 @@ use gitlab::api::{
 	projects::{ArchiveProject, UnarchiveProject},
 	Query,
 };
+use std::process::ExitCode;
 
-pub fn cmd(args: &args::Project) -> Result<()> {
+pub fn cmd(args: &args::Project) -> Result<ExitCode> {
 	match &args.cmd {
 		ProjectCmd::Info(iargs) => {
 			let project = CliContext::global().get_project(args.project.as_ref())?;
@@ -21,7 +22,7 @@ pub fn cmd(args: &args::Project) -> Result<()> {
 			if CliContext::global().open {
 				let _ = open::that(format!("{}/-/tree/{}", &project.web_url, &ref_));
 			}
-			Ok(())
+			Ok(ExitCode::from(0))
 		}
 		ProjectCmd::Archive(_args) => {
 			let project = CliContext::global().get_project(args.project.as_ref())?;
@@ -35,7 +36,7 @@ pub fn cmd(args: &args::Project) -> Result<()> {
 				"project {}({}) has been archived",
 				&project.name, project.id
 			);
-			Ok(())
+			Ok(ExitCode::from(0))
 		}
 		ProjectCmd::Unarchive(_args) => {
 			let project = CliContext::global().get_project(args.project.as_ref())?;
@@ -49,7 +50,7 @@ pub fn cmd(args: &args::Project) -> Result<()> {
 				"project {}({}) has been unarchived",
 				&project.name, project.id
 			);
-			Ok(())
+			Ok(ExitCode::from(0))
 		}
 	}
 }

@@ -13,13 +13,14 @@ use gitlab::{
 	types,
 };
 use serde::Deserialize;
+use std::process::ExitCode;
 
 #[derive(Deserialize)]
 struct Tag {
 	name: String,
 }
 
-pub fn cmd(args: &args::Tags) -> Result<()> {
+pub fn cmd(args: &args::Tags) -> Result<ExitCode> {
 	match &args.cmd {
 		TagsCmd::Unprotect(args) => {
 			let project = CliContext::global().get_project(args.project.as_ref())?;
@@ -51,7 +52,7 @@ pub fn cmd(args: &args::Tags) -> Result<()> {
 				let _ = open::that(format!("{}/-/settings/repository", project.web_url));
 			}
 
-			Ok(())
+			Ok(ExitCode::from(0))
 		}
 
 		TagsCmd::Protect(args) => {
@@ -91,7 +92,7 @@ pub fn cmd(args: &args::Tags) -> Result<()> {
 				let _ = open::that(format!("{}/-/settings/repository", project.web_url));
 			}
 
-			Ok(())
+			Ok(ExitCode::from(0))
 		}
 	}
 }
