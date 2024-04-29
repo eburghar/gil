@@ -1,14 +1,14 @@
-use crate::{api::user::User, args, context::CliContext};
+use crate::{api::user::User, args, context::CliContext, types};
 
 use anyhow::Result;
-use gitlab::{api::Query, types};
+use gitlab::api::Query;
 use std::process::ExitCode;
 
 pub fn cmd(args: &args::Users) -> Result<ExitCode> {
 	match &args.cmd {
 		args::UserCmd::Current(_) => {
 			let endpoint = User::build();
-			let user: types::UserBasic = endpoint.query(&CliContext::global().gitlab)?;
+			let user: types::User = endpoint.query(&CliContext::global().gitlab)?;
 			CliContext::global().print_username(&user)
 		}
 		args::UserCmd::IsAdmin(_) => {

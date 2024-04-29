@@ -29,7 +29,7 @@ is in place, so feel free to fork or send PR.
 
   - `pipeline`: triggers a pipeline creation, see status, get log, cancel and retry
   
-  - `project`: display information about GitLab project (mainly to open the page in the browser)
+  - `project`: manage project (info, archive, unarchinve)
 
   - `token`: manage GitLab token (useful in scripts to auto-provision and renew tokens)
 
@@ -42,7 +42,7 @@ It works on Windows and with multiple GitLab hosts.
 ## General use
 
 ```
-gil 0.8.0
+gil 0.9.0
 
 Usage: gil [-c <config>] [-v] [-o] [-u] [--color <color>] [--no-cache] <command> [<args>]
 
@@ -221,7 +221,7 @@ gil archive extract -r -p group/project 0.5.0
 ## Archive command
 
 ```
-gil 0.8.0
+gil 0.9.0
 
 Usage: gil archive extract [<ref_>] [-p <project>] [-b <batch>] [-s <strip>] [-r] [-d <dir>] [-k] [-u]
 
@@ -263,7 +263,7 @@ re-extract archives.
 ## Tags command
 
 ```
-gil 0.8.0
+gil 0.9.0
 
 Usage: gil tags <command> [<args>]
 
@@ -282,7 +282,7 @@ Allow switching on and off tags protection. Without argument, it will (un)protec
 ## Pipeline command
 
 ```
-gil 0.8.0
+gil 0.9.0
 
 Usage: gil pipeline <command> [<args>]
 
@@ -301,7 +301,7 @@ Commands:
 ### log sub command
 
 ```
-gil 0.8.0
+gil 0.9.0
 
 Usage: gil pipeline log [<id>] [-p <project>] [-r <ref>] [-s <section>] [-j <job-id>] [-a] [-h] [-H]
 
@@ -358,7 +358,7 @@ watch -c 'gil --color always pipeline log | tail --lines $((LINES))'
 A generic command used to automatically provision tokens in script.
 
 ```
-gil 0.8.0
+gil 0.9.0
 
 Usage: gil token <command> [<args>]
 
@@ -379,7 +379,7 @@ Commands:
 A generic command used to automatically provision ssh keys in script.
 
 ```
-gil 0.8.0
+gil 0.9.0
 
 Usage: gil keys <command> [<args>]
 
@@ -399,7 +399,7 @@ Commands:
 For now just a simple command to retrieve the username of the currently logged user
 
 ```
-gil 0.8.0
+gil 0.9.0
 
 Usage: gil users <command> [<args>]
 
@@ -410,6 +410,28 @@ Options:
 
 Commands:
   current           Get current user name
+```
+
+## Project command
+
+Show info about a project (mainly to open the project's page in browser), and archive/unarchive
+a project
+
+```
+gil 0.9.0
+
+Usage: gil project [-p <project>] <command> [<args>]
+
+Manage projects
+
+Options:
+  -p, --project     the project to protect tags from
+  --help            display usage information
+
+Commands:
+  info              Display information about project
+  archive           Archive project
+  unarchive         Unarchive project
 ```
 
 ## Configuration

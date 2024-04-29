@@ -1,5 +1,5 @@
 use crate::{
-	args::{self, ProjectArchive, ProjectCmd},
+	args::{self, ProjectCmd},
 	context::CliContext,
 };
 

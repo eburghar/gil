@@ -9,7 +9,9 @@ use crate::{
 	config::{AuthType, Config, OAuth2Token},
 	fmt::{Colorizer, Stream},
 	git::GitProject,
-	types::{PersonalAccessToken, SshKey},
+	types::{
+		Job, PersonalAccessToken, Pipeline, Project, RepoBranch, SshKey, StatusState, Tag, User,
+	},
 	utils::{format_duration, take_from_vec},
 };
 
@@ -27,7 +29,7 @@ use gitlab::{
 		users::{CurrentUser, Users},
 		Query,
 	},
-	types, Gitlab, StatusState,
+	Gitlab,
 };
 use std::{convert::Into, fmt::Display, process::ExitCode, str::FromStr, sync::OnceLock};
 
@@ -245,7 +247,7 @@ impl CliContext {
 	}
 
 	/// Get a project (which can be the one provided or a default one)
-	pub fn get_project<'a, T>(&'a self, default: Option<T>) -> Result<types::Project>
+	pub fn get_project<'a, T>(&'a self, default: Option<T>) -> Result<Project>
 	where
 		T: Into<NameOrId<'a>> + Display,
 	{
@@ -267,7 +269,7 @@ impl CliContext {
 	}
 
 	/// Get a tag (which can be the one provided or a default one) for the given project
-	pub fn get_tag(&self, default: Option<&str>, project: &types::Project) -> Result<types::Tag> {
+	pub fn get_tag(&self, default: Option<&str>, project: &Project) -> Result<Tag> {
 		let tag = default.map(AsRef::as_ref).or(self.repo.tag.as_deref());
 		if let Some(tag) = tag {
 			tags::Tag::builder()
@@ -290,11 +292,7 @@ impl CliContext {
 	}
 
 	/// Get a branch (which can be the one provided or a default one) for the given project
-	pub fn get_branch(
-		&self,
-		default: Option<&str>,
-		project: &types::Project,
-	) -> Result<types::RepoBranch> {
+	pub fn get_branch(&self, default: Option<&str>, project: &Project) -> Result<RepoBranch> {
 		let branch = default.or(Some(self.repo.branch.as_str()));
 		if let Some(branch) = branch {
 			branches::Branch::builder()
@@ -332,7 +330,7 @@ impl CliContext {
 
 	/// Get a reference (which can be the one provided or a default one) for the given project
 	/// checking that it is tag or a branch name
-	pub fn get_ref(&self, ref_: Option<&str>, project: &types::Project) -> Result<String> {
+	pub fn get_ref(&self, ref_: Option<&str>, project: &Project) -> Result<String> {
 		// get a reference (a tag or a branch)
 		self.get_tag(ref_, project)
 			.map(|tag| tag.name)
@@ -348,7 +346,7 @@ impl CliContext {
 	}
 
 	/// Get a reference but returns an Err if the given reference has diverged
-	pub fn check_ref(&self, ref_: Option<&str>, project: &types::Project) -> Result<String> {
+	pub fn check_ref(&self, ref_: Option<&str>, project: &Project) -> Result<String> {
 		let ref2_ = self.get_ref(ref_, project)?;
 		// check that ref didn't change
 		if let Some(r) = ref_ {
@@ -368,9 +366,9 @@ impl CliContext {
 	pub fn get_pipeline(
 		&self,
 		default: Option<u64>,
-		project: &types::Project,
+		project: &Project,
 		ref_: &str,
-	) -> Result<types::PipelineBasic> {
+	) -> Result<Pipeline> {
 		if let Some(id) = default {
 			let endpoint = pipelines::Pipeline::builder()
 				.project(project.path_with_namespace.as_str())
@@ -411,10 +409,10 @@ impl CliContext {
 		&self,
 		default: Option<u64>,
 		pipeline_id: Option<u64>,
-		project: &types::Project,
+		project: &Project,
 		ref_: &str,
 		scopes: I,
-	) -> Result<types::Job>
+	) -> Result<Job>
 	where
 		I: Iterator<Item = JobScope>,
 	{
@@ -425,7 +423,7 @@ impl CliContext {
 			.include_retried(true)
 			.scopes(scopes)
 			.build()?;
-		let jobs: Vec<types::Job> = endpoint.query(&self.gitlab).with_context(|| {
+		let jobs: Vec<Job> = endpoint.query(&self.gitlab).with_context(|| {
 			format!(
 				"Failed to list jobs for the pipeline {} {} @ {}",
 				pipeline.id, &project.path_with_namespace, ref_
@@ -493,7 +491,7 @@ impl CliContext {
 	}
 
 	/// Get a list of Job(s) for a given project's pipeline id
-	pub fn get_jobs(&self, project: &types::Project, pipeline: u64) -> Result<Vec<types::Job>> {
+	pub fn get_jobs(&self, project: &Project, pipeline: u64) -> Result<Vec<Job>> {
 		let endpoint = pipelines::PipelineJobs::builder()
 			.project(project.path_with_namespace.as_str())
 			.pipeline(pipeline)
@@ -509,7 +507,7 @@ impl CliContext {
 	}
 
 	/// Get current user
-	pub fn get_current_user(&self) -> Result<types::UserBasic> {
+	pub fn get_current_user(&self) -> Result<User> {
 		let endpoint = CurrentUser::builder().build()?;
 		let user = endpoint
 			.query(&self.gitlab)
@@ -518,10 +516,10 @@ impl CliContext {
 	}
 
 	/// Get user with name or current user
-	pub fn get_user(&self, username: Option<&str>) -> Result<types::UserBasic> {
+	pub fn get_user(&self, username: Option<&str>) -> Result<User> {
 		if let Some(username) = username {
 			let endpoint = Users::builder().username(username).build()?;
-			let users: Vec<types::UserBasic> = endpoint
+			let users: Vec<User> = endpoint
 				.query(&self.gitlab)
 				.with_context(|| format!("Failed to get user {} information", username))?;
 			if users.len() > 1 {
@@ -716,7 +714,7 @@ impl CliContext {
 	}
 
 	/// Print job's log header
-	pub fn print_log(&self, log: &[u8], job: &types::Job, args: &PipelineLog) -> Result<()> {
+	pub fn print_log(&self, log: &[u8], job: &Job, args: &PipelineLog) -> Result<()> {
 		let mut msg = StyledStr::new();
 		msg.none("Log for job ");
 		msg.literal(job.id.to_string());
@@ -734,12 +732,7 @@ impl CliContext {
 	}
 
 	/// Print pipeline header
-	pub fn msg_pipeline(
-		&self,
-		msg: &mut StyledStr,
-		pipeline: &types::PipelineBasic,
-		project: &types::Project,
-	) {
+	pub fn msg_pipeline(&self, msg: &mut StyledStr, pipeline: &Pipeline, project: &Project) {
 		msg.none("Pipeline ");
 		msg.literal(pipeline.id.to_string());
 		msg.none(format!(
@@ -764,22 +757,14 @@ impl CliContext {
 		msg.none("\n");
 	}
 
-	pub fn print_pipeline(
-		&self,
-		pipeline: &types::PipelineBasic,
-		project: &types::Project,
-	) -> Result<ExitCode> {
+	pub fn print_pipeline(&self, pipeline: &Pipeline, project: &Project) -> Result<ExitCode> {
 		let mut msg = StyledStr::new();
 		self.msg_pipeline(&mut msg, pipeline, project);
 		self.print_msg(msg)
 	}
 
 	/// Print pipelines list
-	pub fn print_pipelines(
-		&self,
-		pipelines: &[types::PipelineBasic],
-		project: &types::Project,
-	) -> Result<ExitCode> {
+	pub fn print_pipelines(&self, pipelines: &[Pipeline], project: &Project) -> Result<ExitCode> {
 		let mut msg = StyledStr::new();
 		if pipelines.is_empty() {
 			msg.none("No pipelines found for ");
@@ -798,7 +783,7 @@ impl CliContext {
 	}
 
 	/// Print the provided jobs list in reverse order (run order)
-	pub fn print_jobs(&self, jobs: &[types::Job]) -> Result<ExitCode> {
+	pub fn print_jobs(&self, jobs: &[Job]) -> Result<ExitCode> {
 		let mut msg = StyledStr::new();
 		if !jobs.is_empty() {
 			for job in jobs.iter().rev() {
@@ -830,7 +815,7 @@ impl CliContext {
 	}
 
 	// Print project header
-	pub fn print_project(&self, project: &types::Project, ref_: &str) -> Result<ExitCode> {
+	pub fn print_project(&self, project: &Project, ref_: &str) -> Result<ExitCode> {
 		let mut msg = StyledStr::new();
 		msg.none("Project ");
 		msg.literal(&project.id.to_string());
@@ -846,11 +831,7 @@ impl CliContext {
 		self.print_msg(msg)
 	}
 
-	pub fn print_tokens(
-		&self,
-		tokens: &[crate::types::PersonalAccessToken],
-		user: &types::UserBasic,
-	) -> Result<ExitCode> {
+	pub fn print_tokens(&self, tokens: &[PersonalAccessToken], user: &User) -> Result<ExitCode> {
 		let mut msg = StyledStr::new();
 		msg.none("Token(s) for user ");
 		msg.literal(&user.username);
@@ -914,7 +895,7 @@ impl CliContext {
 	}
 
 	/// Print ssh keys
-	pub fn print_keys(&self, keys: &Vec<SshKey>, user: &types::UserBasic) -> Result<ExitCode> {
+	pub fn print_keys(&self, keys: &Vec<SshKey>, user: &User) -> Result<ExitCode> {
 		let mut msg = StyledStr::new();
 		msg.none("Key(s) for user ");
 		msg.literal(&user.username);
@@ -933,15 +914,9 @@ impl CliContext {
 	}
 
 	/// print a username
-	pub fn print_username(&self, user: &types::UserBasic) -> Result<ExitCode> {
+	pub fn print_username(&self, user: &User) -> Result<ExitCode> {
 		let mut msg = StyledStr::new();
 		msg.none(&user.username);
-		self.print_msg(msg)
-	}
-
-	pub fn print_useradmin(&self, user: &types::User) -> Result<ExitCode> {
-		let mut msg = StyledStr::new();
-		msg.none(&user.is_admin.unwrap_or(false).to_string());
 		self.print_msg(msg)
 	}
 }
@@ -951,13 +926,13 @@ trait HasStatusState {
 	fn get_status(&self) -> StatusState;
 }
 
-impl HasStatusState for &types::PipelineBasic {
+impl HasStatusState for &Pipeline {
 	fn get_status(&self) -> StatusState {
 		self.status
 	}
 }
 
-impl HasStatusState for &types::Job {
+impl HasStatusState for &Job {
 	fn get_status(&self) -> StatusState {
 		self.status
 	}

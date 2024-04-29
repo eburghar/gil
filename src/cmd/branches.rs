@@ -1,16 +1,14 @@
 use crate::{
 	args::{self, BranchesCmd},
 	context::CliContext,
+	types,
 };
 
 use anyhow::{Context, Result};
-use gitlab::{
-	api::{
-		self,
-		projects::protected_branches::{ProtectBranch, ProtectedBranches, UnprotectBranch},
-		Query,
-	},
-	types,
+use gitlab::api::{
+	self,
+	projects::protected_branches::{ProtectBranch, ProtectedBranches, UnprotectBranch},
+	Query,
 };
 use serde::Deserialize;
 use std::process::ExitCode;

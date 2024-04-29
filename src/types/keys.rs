@@ -1,9 +1,10 @@
-use std::{borrow::Cow, str::FromStr};
+use crate::types;
 
 use anyhow::{anyhow, Error};
 use chrono::{DateTime, Utc};
-use gitlab::{api::ParamValue, SshKeyId, UserBasic};
-use serde::{Deserialize, Serialize};
+use gitlab::api::ParamValue;
+use serde::Deserialize;
+use std::{borrow::Cow, str::FromStr};
 
 #[derive(Debug, Copy, Clone)]
 pub enum KeyUsage {
@@ -48,11 +49,21 @@ impl FromStr for KeyUsage {
 	}
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
+pub struct SshKeyId(u64);
+
+impl SshKeyId {
+	/// The value of the id.
+	pub const fn value(&self) -> u64 {
+		self.0
+	}
+}
+
+#[derive(Deserialize, Debug)]
 pub struct SshKey {
 	pub id: SshKeyId,
 	pub title: String,
 	pub key: String,
 	pub created_at: DateTime<Utc>,
-	pub user: Option<UserBasic>,
+	pub user: Option<types::User>,
 }
