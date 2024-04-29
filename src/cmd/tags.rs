@@ -1,16 +1,14 @@
 use crate::{
 	args::{self, TagsCmd},
 	context::CliContext,
+	types,
 };
 
 use anyhow::{Context, Result};
-use gitlab::{
-	api::{
-		self,
-		projects::protected_tags::{ProtectTag, ProtectedTags, UnprotectTag},
-		Query,
-	},
-	types,
+use gitlab::api::{
+	self,
+	projects::protected_tags::{ProtectTag, ProtectedTags, UnprotectTag},
+	Query,
 };
 use serde::Deserialize;
 use std::process::ExitCode;

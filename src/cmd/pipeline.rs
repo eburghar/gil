@@ -3,19 +3,17 @@ use std::process::ExitCode;
 use crate::{
 	args::{self, PipelineCmd},
 	context::CliContext,
+	types,
 };
 
 use anyhow::{Context, Result};
-use gitlab::{
-	api::{
-		self,
-		projects::{
-			jobs::{self, JobScope},
-			pipelines,
-		},
-		Pagination, Query,
+use gitlab::api::{
+	self,
+	projects::{
+		jobs::{self, JobScope},
+		pipelines,
 	},
-	types,
+	Pagination, Query,
 };
 
 /// Command implementation
@@ -27,7 +25,7 @@ pub fn cmd(args: &args::Pipeline) -> Result<ExitCode> {
 			let endpoint = pipelines::Pipelines::builder()
 				.project(project.path_with_namespace.to_owned())
 				.build()?;
-			let pipelines: Vec<types::PipelineBasic> =
+			let pipelines: Vec<types::Pipeline> =
 				api::paged(endpoint, Pagination::Limit(cmd_args.limit))
 					.query(&CliContext::global().gitlab)
 					.with_context(|| {
@@ -55,7 +53,7 @@ pub fn cmd(args: &args::Pipeline) -> Result<ExitCode> {
 				.project(project.path_with_namespace.to_owned())
 				.ref_(&ref_)
 				.build()?;
-			let pipeline: types::PipelineBasic = endpoint
+			let pipeline: types::Pipeline = endpoint
 				.query(&CliContext::global().gitlab)
 				.with_context(|| {
 					format!(
@@ -102,7 +100,7 @@ pub fn cmd(args: &args::Pipeline) -> Result<ExitCode> {
 				.project(project.path_with_namespace.to_owned())
 				.pipeline(pipeline.id.value())
 				.build()?;
-			let pipeline: types::PipelineBasic = endpoint
+			let pipeline: types::Pipeline = endpoint
 				.query(&CliContext::global().gitlab)
 				.with_context(|| {
 					format!("Failed to cancel pipeline {}", &pipeline.id.to_string())
@@ -130,7 +128,7 @@ pub fn cmd(args: &args::Pipeline) -> Result<ExitCode> {
 				.project(project.path_with_namespace.to_owned())
 				.pipeline(pipeline.id.value())
 				.build()?;
-			let pipeline: types::PipelineBasic = endpoint
+			let pipeline: types::Pipeline = endpoint
 				.query(&CliContext::global().gitlab)
 				.with_context(|| format!("Failed to retry pipeline {}", pipeline.id))?;
 
