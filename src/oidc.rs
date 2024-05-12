@@ -10,7 +10,7 @@ use openidconnect::url::Url;
 use openidconnect::{
     core::{CoreClient, CoreIdTokenVerifier, CoreProviderMetadata, CoreResponseType},
     AdditionalClaims, AuthenticationFlow, AuthorizationCode, ClientId, ClientSecret, CsrfToken,
-    HttpRequest, HttpResponse, IssuerUrl, Nonce, OAuth2TokenResponse, RedirectUrl, Scope,
+    HttpRequest, HttpResponse, IssuerUrl, Nonce, RedirectUrl, Scope,
 };
 use reqwest::{blocking, Certificate};
 use serde::{Deserialize, Serialize};
@@ -21,10 +21,10 @@ use std::{
 };
 
 #[derive(Debug, Deserialize, Serialize)]
-struct GitLabClaims {
+pub struct GitLabClaims {
     // Deprecated and thus optional as it might be removed in the future
     sub_legacy: Option<String>,
-    groups: Vec<String>,
+    groups_direct: Vec<String>,
 }
 impl AdditionalClaims for GitLabClaims {}
 
@@ -57,7 +57,8 @@ impl HttpClient {
         move |request: HttpRequest| {
             let mut builder = blocking::Client::builder()
                 // Following redirects opens the client up to SSRF vulnerabilities.
-                .redirect(reqwest::redirect::Policy::none());
+                .redirect(reqwest::redirect::Policy::none())
+                .tls_built_in_root_certs(true);
             builder = if let Some(cert) = &self.ca {
                 builder.add_root_certificate(cert.to_owned())
             } else {
@@ -229,7 +230,7 @@ pub fn login(host: &str, ca: &Option<String>, config: &OAuth2, opts: &Opts) -> R
         .with_context(|| "Failed to verify ID token")?;
 
     // save into cache
-    let cache = OAuth2Token::new(token_response.access_token().secret().to_owned());
+    let cache = OAuth2Token::new(token_response);
     if !opts.no_cache {
         let _ = cache.save(host);
     }

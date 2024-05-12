@@ -2,8 +2,7 @@ use crate::types::keys::KeyUsage;
 
 use chrono::{DateTime, Utc};
 use derive_builder::Builder;
-use gitlab::api::{Endpoint, QueryParams};
-use reqwest::Method;
+use gitlab::api::{endpoint_prelude::Method, Endpoint, QueryParams};
 use std::borrow::Cow;
 
 #[derive(Debug, Builder)]

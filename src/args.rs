@@ -666,6 +666,7 @@ pub struct Users {
 pub enum UserCmd {
 	Current(UserCurrent),
 	IsAdmin(UserIsAdmin),
+	Token(UserToken),
 }
 
 /// Get current user name
@@ -677,3 +678,8 @@ pub struct UserCurrent {}
 #[derive(FromArgs)]
 #[argh(subcommand, name = "isadmin")]
 pub struct UserIsAdmin {}
+
+/// get info about token
+#[derive(FromArgs)]
+#[argh(subcommand, name = "token")]
+pub struct UserToken {}

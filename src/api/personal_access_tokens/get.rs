@@ -2,8 +2,7 @@ use std::{borrow::Cow, str::FromStr};
 
 use anyhow::{anyhow, Error};
 use derive_builder::Builder;
-use gitlab::api::{Endpoint, QueryParams};
-use reqwest::Method;
+use gitlab::api::{endpoint_prelude::Method, Endpoint, QueryParams};
 
 #[derive(Debug, Clone, Copy)]
 pub enum PersonalAccessTokenState {

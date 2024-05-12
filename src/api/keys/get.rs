@@ -1,6 +1,6 @@
 use derive_builder::Builder;
+use gitlab::api::endpoint_prelude::Method;
 use gitlab::api::{Endpoint, QueryParams};
-use reqwest::Method;
 use std::borrow::Cow;
 
 #[derive(Debug, Builder)]
