@@ -446,13 +446,20 @@ The configuration is searched from these places :
    `~/.config/gil/config.yaml`, For Windows it is
    `C:\Users\myuser\AppData\Roaming\ITSufficient\Gil\config`
 
-For access token authentication for a host `git.mydomain.com`, the configuration file looks like :
+To define access token authentication for a host `git.mydomain.com`, the configuration file looks
+like :
 
 ```yaml
 hosts:
-  git.mydomain.com:
+  # the remote host pointed by the repo
+  ssh.git.mydomain.com:
+    # the host for GitLab API (if different than the repo host)
+    host: git.mydomain.com
+    # the CA certificate (if using private certificates)
     ca: ca.crt
+    # for access token, token is a string
     token: xxxxxxxxxx
+
 ```
 
 The token is a regular GitLab access token with API privilege.
@@ -463,6 +470,7 @@ For OIDC authentication, it looks like :
 hosts:
   git.mydomain.com:
     ca: ca.crt
+    # for OIDC token, token is a dictionary
     token:
       id: yyyyyy
       secret: zzzzzz
