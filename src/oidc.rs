@@ -229,7 +229,7 @@ pub fn login(host: &str, ca: &Option<String>, config: &OAuth2, opts: &Opts) -> R
         .with_context(|| "Failed to verify ID token")?;
 
     // save into cache
-    let cache = OAuth2Token::new(token_response.access_token().secret().to_owned());
+    let cache = OAuth2Token::new(token_response);
     if !opts.no_cache {
         let _ = cache.save(host);
     }
